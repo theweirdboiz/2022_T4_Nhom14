@@ -18,7 +18,6 @@ public class OneProcess {
     private final String WEB_URL = "https://thoitiet.vn";
     private ArrayList<Source> sources;
     ConnectDatabase connectDatabase;
-    String statusLog;
 
     public void loadDimSources() throws SQLException {
         Document doc = null;
@@ -69,84 +68,91 @@ public class OneProcess {
 
     //5. Extract data successful? update status = EO : update status = EF where id= ?
     public void extractData() throws SQLException {
-        String query = "SELECT * FROM log WHERE STATUS='ER'";
+        String query = "SELECT DISTINCT(*) FROM log WHERE STATUS='ER'";
         Statement stmt = connectDatabase.getConn().createStatement();
         ResultSet rs = stmt.executeQuery(query);
 
         while (rs.next()) {
             String time = rs.getString("TIME");
             int id = rs.getInt("CONFIG_ID");
-            query = "SELECT URL from config RIGHT JOIN log ON config.ID = log.CONFIG_ID WHERE ID=?";
+            query = "SELECT URL from config WHERE ID=?";
+
             PreparedStatement ps = connectDatabase.getConn().prepareStatement(query);
             ps.setInt(1, id);
             rs = ps.executeQuery();
-            while (rs.next()) {
-                String url = rs.getString("url");
-                try {
-                    Document doc = Jsoup.connect(url).get();
-                    doc.outputSettings().charset("UTF-8");
-                    Elements provinces = doc.select(".mega-submenu a");
-                    File sourceFile = new File("./data" + id + ".csv");
-                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(sourceFile), StandardCharsets.UTF_8));
-                    for (int i = 0; i < provinces.size(); i++) {
-                        String dataURL = WEB_URL + provinces.get(i).attr("href");
-                        Document docItem = Jsoup.connect(dataURL).get();
-                        // province
-                        writer.write(provinces.get(i).attr("title") + ",");
-                        // current_time
-                        writer.write(docItem.select("#timer").text().replace("| ", "") + ",");
-                        Element currentTemp = docItem.select(".current-temperature").first();
-                        // current_temperature
-                        writer.write(currentTemp.text() + ",");
-                        // overview
-                        writer.write(docItem.select(".overview-caption-item.overview-caption-item-detail").text() + ","); // lowest_temp
-                        // lowest
-                        writer.write(
-                                docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0] + ",");
-                        // maximum_temp
-                        writer.write(
-                                docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text().split("/")[1] + ",");
-                        // humidity
-                        writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text() + ",");
-                        // vision
-                        writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text() + ",");
-                        // wind
-                        writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text() + ",");
-                        // stop_point
-                        writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text() + ",");
-                        // uv_index
-                        writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text() + ",");
-                        // air_quality
-                        writer.write(docItem.select(".air-api.air-active").text() + ",");
-                        // time_refresh
-                        writer.write(docItem.select(".location-auto-refresh").text() + "\n");
-                    }
-                    writer.write("");
-                    writer.flush();
-                    writer.close();
-                    // save as FTP server
-                    // OK ? update EO : Update EF
-                    query = "UPDATE log SET STATUS =? WHERE CONFIG_ID=? AND TIME=?";
-                    ps = connectDatabase.getConn().prepareStatement(query);
-                    if (sourceFile.length() > 0) {
-                        ps.setString(1, "EO");
-                    } else {
-                        ps.setString(1, "EF");
-                    }
-                    ps.setInt(2, id);
-                    ps.setString(3, time);
-                    ps.execute();
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+
+            File sourceFile = new File("./data" + id + ".csv");
+
+
+            String url = rs.getString("url");
+            try {
+                Document doc = Jsoup.connect(url).get();
+                doc.outputSettings().charset("UTF-8");
+
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(sourceFile), StandardCharsets.UTF_8));
+                Elements provinces = null;
+                if (url == "https://thoitiet.vn/") {
+                    provinces = doc.select(".megamenu a");
+
                 }
+                if (url == "https://thoitiet.edu.vn/") {
+                    provinces = doc.select(".card-body h3 > a");
+                }
+                for (int i = 0; i < provinces.size(); i++) {
+                    String dataURL = WEB_URL + provinces.get(i).attr("href");
+                    Document docItem = Jsoup.connect(dataURL).get();
+                    // province
+                    writer.write(provinces.get(i).attr("title") + ",");
+                    // current_time
+                    writer.write(docItem.select("#timer").text().replace("| ", "") + ",");
+                    Element currentTemp = docItem.select(".current-temperature").first();
+                    // current_temperature
+                    writer.write(currentTemp.text() + ",");
+                    // overview
+                    writer.write(docItem.select(".overview-caption-item.overview-caption-item-detail").text() + ","); // lowest_temp
+                    // lowest
+                    writer.write(
+                            docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0] + ",");
+                    // maximum_temp
+                    writer.write(
+                            docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text().split("/")[1] + ",");
+                    // humidity
+                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text() + ",");
+                    // vision
+                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text() + ",");
+                    // wind
+                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text() + ",");
+                    // stop_point
+                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text() + ",");
+                    // uv_index
+                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text() + ",");
+                    // air_quality
+                    writer.write(docItem.select(".air-api.air-active").text() + ",");
+                    // time_refresh
+                    writer.write(docItem.select(".location-auto-refresh").text() + "\n");
+                }
+                writer.write("");
+                writer.flush();
+                writer.close();
+                // save as FTP server
+                // OK ? update EO : Update EF
+                query = "UPDATE log SET STATUS =? WHERE CONFIG_ID=? AND TIME=?";
+                ps = connectDatabase.getConn().prepareStatement(query);
+                if (sourceFile.length() > 0) {
+                    //save FTP
+                    ps.setString(1, "EO");
+                } else {
+                    ps.setString(1, "EF");
+                }
+                ps.setInt(2, id);
+                ps.setString(3, time);
+                ps.execute();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
-
-
         }
     }
-
-
     public static void main(String[] args) throws SQLException, ClassNotFoundException {
         OneProcess oneProcess = new OneProcess();
         oneProcess.connectDatabase("control");
