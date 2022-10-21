@@ -1,9 +1,11 @@
 package process;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.CallableStatement;
@@ -11,11 +13,13 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPReply;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import dao.FTPConfigDao;
 import db.MySQLConnection;
 
 public class FirstProcessing {
@@ -24,7 +28,16 @@ public class FirstProcessing {
 	private final String USER_NAME = "root";
 	private final String PASSWORD = "";
 	MySQLConnection connectDb;
-//
+
+	private static final String FTP_SERVER_ADDRESS = "103.97.126.21";
+	private static final int FTP_SERVER_PORT_NUMBER = 21;
+	private static final int FTP_TIMEOUT = 60000;
+	private static final int BUFFER_SIZE = 1024 * 1024 * 1;
+	private static final String FTP_USERNAME = "ngsfihae";
+	private static final String FTP_PASSWORD = "U05IIKw0HsICPNU";
+	private static final String SLASH = "/";
+	private FTPClient ftpClient;
+	private FTPConfigDao ftpConfigDao;
 
 	public FirstProcessing() {
 		connectDb = new MySQLConnection(DB_URL, USER_NAME, PASSWORD);
@@ -74,9 +87,9 @@ public class FirstProcessing {
 			// uv_index
 			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text() + ",");
 			// air_quality
-			writer.write(docItem.select(".air-api.air-active").text() + ",");
+			writer.write(docItem.select(".air-api.air-active").text() + "\n");
 			// time_refresh
-			writer.write(docItem.select(".location-auto-refresh").text() + "\n");
+//			writer.write(docItem.select(".location-auto-refresh").text() + "\n");
 		}
 		writer.write("");
 		writer.flush();
@@ -92,19 +105,53 @@ public class FirstProcessing {
 			e.printStackTrace();
 		}
 		// upload FTP
-		uploadFTP(client);
-		// download FTP
-//		downloadFTP(client);
+		boolean success = uploadFTPFile(fileName);
+		if (success) {
+			query = "{CALL FINISH_EXTRACT(?)}";
 
+		} else {
+			query = "CALL FAIL_EXTRACT(?)";
+
+		}
+		callStmt = connectDb.getConnect().prepareCall(query);
+		callStmt.setInt(1, 1);
+		callStmt.execute();
 	}
 
-	public void uploadFTP(FTPClient client) {
+//	private void downloadFTPFile(String ftpFilePath, String downloadFilePath) {
+//		System.out.println("File " + ftpFilePath + " is downloading...");
+//		OutputStream outputStream = null;
+//		boolean success = false;
+//		try {
+//			File downloadFile = new File(downloadFilePath);
+//			outputStream = new BufferedOutputStream(new FileOutputStream(downloadFile));
+//			// download file from FTP Server
+//			ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
+//			ftpClient.setBufferSize(BUFFER_SIZE);
+//			success = ftpClient.retrieveFile(ftpFilePath, outputStream);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		} finally {
+//			try {
+//				outputStream.close();
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//		}
+//		if (success) {
+//			System.out.println("File " + ftpFilePath + " has been downloaded successfully.");
+//		}
+//	}
+
+	public boolean uploadFTPFile(String ftpFilePath) {
 		FileInputStream fis = null;
+		boolean success = false;
 		try {
 			String fileName = "./data1.csv";
 			fis = new FileInputStream(fileName);
-			client.storeFile(fileName, fis);
-			client.logout();
+			ftpClient.storeFile(fileName, fis);
+			ftpClient.logout();
+			success = ftpClient.completePendingCommand();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
@@ -112,16 +159,57 @@ public class FirstProcessing {
 				if (fis != null) {
 					fis.close();
 				}
-				client.disconnect();
+				ftpClient.disconnect();
 			} catch (IOException e) {
 				e.printStackTrace();
+			}
+		}
+		if (success) {
+			System.out.println("File " + ftpFilePath + " has been uploaded successfully.");
+		}
+		return success;
+	}
+
+	private void connectFTPServer() {
+		ftpClient = new FTPClient();
+		try {
+			System.out.println("Connecting FTP server...");
+			// connect to ftp server
+			ftpClient.setDefaultTimeout(FTP_TIMEOUT);
+			ftpClient.connect(FTP_SERVER_ADDRESS, FTP_SERVER_PORT_NUMBER);
+			// run the passive mode command
+			ftpClient.enterLocalPassiveMode();
+			// check reply code
+			if (!FTPReply.isPositiveCompletion(ftpClient.getReplyCode())) {
+				disconnectFTPServer();
+				throw new IOException("FTP server not respond!");
+			} else {
+				ftpClient.setSoTimeout(FTP_TIMEOUT);
+				// login ftp server
+				if (!ftpClient.login(FTP_USERNAME, FTP_PASSWORD)) {
+					throw new IOException("Username or password is incorrect!");
+				}
+				ftpClient.setDataTimeout(FTP_TIMEOUT);
+				System.out.println("Connected FTP!");
+			}
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private void disconnectFTPServer() {
+		if (ftpClient != null && ftpClient.isConnected()) {
+			try {
+				ftpClient.logout();
+				ftpClient.disconnect();
+			} catch (IOException ex) {
+				ex.printStackTrace();
 			}
 		}
 	}
 
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessing firstProcessing = new FirstProcessing();
-		firstProcessing.runScript();
 
 	}
 }
