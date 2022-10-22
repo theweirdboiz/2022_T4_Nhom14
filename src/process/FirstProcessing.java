@@ -118,30 +118,7 @@ public class FirstProcessing {
 		callStmt.execute();
 	}
 
-//	private void downloadFTPFile(String ftpFilePath, String downloadFilePath) {
-//		System.out.println("File " + ftpFilePath + " is downloading...");
-//		OutputStream outputStream = null;
-//		boolean success = false;
-//		try {
-//			File downloadFile = new File(downloadFilePath);
-//			outputStream = new BufferedOutputStream(new FileOutputStream(downloadFile));
-//			// download file from FTP Server
-//			ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
-//			ftpClient.setBufferSize(BUFFER_SIZE);
-//			success = ftpClient.retrieveFile(ftpFilePath, outputStream);
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		} finally {
-//			try {
-//				outputStream.close();
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		}
-//		if (success) {
-//			System.out.println("File " + ftpFilePath + " has been downloaded successfully.");
-//		}
-//	}
+//
 
 	public boolean uploadFTPFile(String ftpFilePath) {
 		FileInputStream fis = null;

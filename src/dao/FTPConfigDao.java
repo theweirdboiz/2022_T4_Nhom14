@@ -22,6 +22,7 @@ public class FTPConfigDao {
 	private String FTP_USERNAME = "ngsfihae";
 	private String FTP_PASSWORD = "U05IIKw0HsICPNU";
 	private String SLASH = "/";
+	
 	String query;
 	PreparedStatement ps;
 	ResultSet rs;
