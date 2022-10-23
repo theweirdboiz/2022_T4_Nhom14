@@ -1,149 +1,192 @@
 package process;
 
-public class FirstProcessing {}
-//    private final String WEB_URL = "https://thoitiet.vn";
-//    private ArrayList<Source> sources;
-//    ConnectDatabase connectDatabase;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.sql.CallableStatement;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPReply;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import dao.FTPConfigDao;
+import db.MySQLConnection;
+
+public class FirstProcessing {
+	private final String WEB_URL = "https://thoitiet.vn";
+	private final String DB_URL = "jdbc:mysql://localhost:3306/control";
+	private final String USER_NAME = "root";
+	private final String PASSWORD = "";
+	MySQLConnection connectDb;
+
+	private static final String FTP_SERVER_ADDRESS = "103.97.126.21";
+	private static final int FTP_SERVER_PORT_NUMBER = 21;
+	private static final int FTP_TIMEOUT = 60000;
+	private static final int BUFFER_SIZE = 1024 * 1024 * 1;
+	private static final String FTP_USERNAME = "ngsfihae";
+	private static final String FTP_PASSWORD = "U05IIKw0HsICPNU";
+	private static final String SLASH = "/";
+	private FTPClient ftpClient;
+	private FTPConfigDao ftpConfigDao;
+
+	public FirstProcessing() {
+		connectDb = new MySQLConnection(DB_URL, USER_NAME, PASSWORD);
+	}
+
+	public void runScript() throws SQLException, IOException {
+		// 1.Get 1 row from config table
+		String query = "{CALL START_EXTRACT(?,?)}";
+		CallableStatement callStmt;
+
+		callStmt = connectDb.getConnect().prepareCall(query);
+		callStmt.setInt(1, 1);
+		callStmt.setInt(2, 1);
+		callStmt.execute();
+
+		// 2.Extract data
+		String fileName = "data1.csv";
+		Document doc = Jsoup.connect(WEB_URL).get();
+		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(fileName))));
+		Elements provinces = doc.select(".megamenu a");
+		for (int i = 0; i < provinces.size(); i++) {
+			String dataURL = WEB_URL + provinces.get(i).attr("href");
+			Document docItem = Jsoup.connect(dataURL).get();
+			// province
+			writer.write(provinces.get(i).attr("title") + ",");
+			// current_time
+			writer.write(docItem.select("#timer").text().replace("| ", "") + ",");
+			Element currentTemp = docItem.select(".current-temperature").first();
+			// current_temperature
+			writer.write(currentTemp.text() + ",");
+			// overview
+			writer.write(docItem.select(".overview-caption-item.overview-caption-item-detail").text() + ","); // lowest_temp
+			// lowest
+			writer.write(docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0] + ",");
+			// maximum_temp
+			writer.write(
+					docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text().split("/")[1]
+							+ ",");
+			// humidity
+			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text() + ",");
+			// vision
+			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text() + ",");
+			// wind
+			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text() + ",");
+			// stop_point
+			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text() + ",");
+			// uv_index
+			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text() + ",");
+			// air_quality
+			writer.write(docItem.select(".air-api.air-active").text() + "\n");
+			// time_refresh
+//			writer.write(docItem.select(".location-auto-refresh").text() + "\n");
+		}
+		writer.write("");
+		writer.flush();
+		writer.close();
+
+		connectDb.close();
+		FTPClient client = new FTPClient();
+
+		try {
+			client.connect("103.97.126.21");
+			client.login("ngsfihae", "U05IIKw0HsICPNU");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// upload FTP
+		boolean success = uploadFTPFile(fileName);
+		if (success) {
+			query = "{CALL FINISH_EXTRACT(?)}";
+
+		} else {
+			query = "CALL FAIL_EXTRACT(?)";
+
+		}
+		callStmt = connectDb.getConnect().prepareCall(query);
+		callStmt.setInt(1, 1);
+		callStmt.execute();
+	}
+
 //
-//    public void loadDimSources() throws SQLException {
-//        Document doc = null;
-//        try {
-//            doc = Jsoup.connect(WEB_URL).get();
-//            sources = new ArrayList<Source>();
-//            sources.add(new Source(1, "source_1", "https://thoitiet.vn/"));
-//            sources.add(new Source(2, "source_2", "https://thoitiet.edu.vn/"));
-//            for (int i = 0; i < sources.size(); i++) {
-//                String query = "INSERT INTO config VALUES(?,?,?)";
-//                PreparedStatement ps = connectDatabase.getConn().prepareStatement(query);
-//                ps.setInt(1, sources.get(i).getId());
-//                ps.setString(2, sources.get(i).getName());
-//                ps.setString(3, sources.get(i).getUrl());
-//                ps.execute();
-//            }
-//            connectDatabase.closeConnecting();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    //    1. connect db control
-//    public void connectDatabase(String databaseName) throws SQLException, ClassNotFoundException {
-//        connectDatabase = new ConnectDatabase();
-//        connectDatabase.connecting(databaseName);
-//    }
-//
-//    // 2. get 1 row from config table where id= ?
-//    public void insert_into_log() throws SQLException {
-//        String query = "SELECT * FROM config";
-//        Statement stmt = connectDatabase.getConn().createStatement();
-//        ResultSet rs = stmt.executeQuery(query);
-//        while (rs.next()) {
-//            int id = rs.getInt("ID");
-//            //3. Call procedure
-//            String insertLogQuery = "{CALL INSERT_INTO_LOG(?,?,?)}";
-//            //4. Update date -> finish
-//            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
-//            Date date = new Date();
-//            CallableStatement callStmt = connectDatabase.getConn().prepareCall(insertLogQuery);
-//            callStmt.setInt(1, id);
-//            callStmt.setString(2, formatter.format(date));
-//            callStmt.setString(3, "ER");
-//            callStmt.execute();
-//        }
-//    }
-//
-//    //5. Extract data successful? update status = EO : update status = EF where id= ?
-//    public void extractData() throws SQLException {
-//        String query = "SELECT DISTINCT(*) FROM log WHERE STATUS='ER'";
-//        Statement stmt = connectDatabase.getConn().createStatement();
-//        ResultSet rs = stmt.executeQuery(query);
-//
-//        while (rs.next()) {
-//            String time = rs.getString("TIME");
-//            int id = rs.getInt("CONFIG_ID");
-//            query = "SELECT URL from config WHERE ID=?";
-//
-//            PreparedStatement ps = connectDatabase.getConn().prepareStatement(query);
-//            ps.setInt(1, id);
-//            rs = ps.executeQuery();
-//
-//            File sourceFile = new File("./data" + id + ".csv");
-//
-//
-//            String url = rs.getString("url");
-//            try {
-//                Document doc = Jsoup.connect(url).get();
-//                doc.outputSettings().charset("UTF-8");
-//
-//                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(sourceFile), StandardCharsets.UTF_8));
-//                Elements provinces = null;
-//                if (url == "https://thoitiet.vn/") {
-//                    provinces = doc.select(".megamenu a");
-//
-//                }
-//                if (url == "https://thoitiet.edu.vn/") {
-//                    provinces = doc.select(".card-body h3 > a");
-//                }
-//                for (int i = 0; i < provinces.size(); i++) {
-//                    String dataURL = WEB_URL + provinces.get(i).attr("href");
-//                    Document docItem = Jsoup.connect(dataURL).get();
-//                    // province
-//                    writer.write(provinces.get(i).attr("title") + ",");
-//                    // current_time
-//                    writer.write(docItem.select("#timer").text().replace("| ", "") + ",");
-//                    Element currentTemp = docItem.select(".current-temperature").first();
-//                    // current_temperature
-//                    writer.write(currentTemp.text() + ",");
-//                    // overview
-//                    writer.write(docItem.select(".overview-caption-item.overview-caption-item-detail").text() + ","); // lowest_temp
-//                    // lowest
-//                    writer.write(
-//                            docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0] + ",");
-//                    // maximum_temp
-//                    writer.write(
-//                            docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text().split("/")[1] + ",");
-//                    // humidity
-//                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text() + ",");
-//                    // vision
-//                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text() + ",");
-//                    // wind
-//                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text() + ",");
-//                    // stop_point
-//                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text() + ",");
-//                    // uv_index
-//                    writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text() + ",");
-//                    // air_quality
-//                    writer.write(docItem.select(".air-api.air-active").text() + ",");
-//                    // time_refresh
-//                    writer.write(docItem.select(".location-auto-refresh").text() + "\n");
-//                }
-//                writer.write("");
-//                writer.flush();
-//                writer.close();
-//                // save as FTP server
-//                // OK ? update EO : Update EF
-//                query = "UPDATE log SET STATUS =? WHERE CONFIG_ID=? AND TIME=?";
-//                ps = connectDatabase.getConn().prepareStatement(query);
-//                if (sourceFile.length() > 0) {
-//                    //save FTP
-//                    ps.setString(1, "EO");
-//                } else {
-//                    ps.setString(1, "EF");
-//                }
-//                ps.setInt(2, id);
-//                ps.setString(3, time);
-//                ps.execute();
-//            } catch (IOException e) {
-//                // TODO Auto-generated catch block
-//                e.printStackTrace();
-//            }
-//        }
-//    }
-//    public static void main(String[] args) throws SQLException, ClassNotFoundException {
-//        OneProcess oneProcess = new OneProcess();
-//        oneProcess.connectDatabase("control");
-////        oneProcess.loadDimSources();
-//        oneProcess.insert_into_log();
-//        oneProcess.extractData();
-//    }
-//}
+
+	public boolean uploadFTPFile(String ftpFilePath) {
+		FileInputStream fis = null;
+		boolean success = false;
+		try {
+			String fileName = "./data1.csv";
+			fis = new FileInputStream(fileName);
+			ftpClient.storeFile(fileName, fis);
+			ftpClient.logout();
+			success = ftpClient.completePendingCommand();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (fis != null) {
+					fis.close();
+				}
+				ftpClient.disconnect();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		if (success) {
+			System.out.println("File " + ftpFilePath + " has been uploaded successfully.");
+		}
+		return success;
+	}
+
+	private void connectFTPServer() {
+		ftpClient = new FTPClient();
+		try {
+			System.out.println("Connecting FTP server...");
+			// connect to ftp server
+			ftpClient.setDefaultTimeout(FTP_TIMEOUT);
+			ftpClient.connect(FTP_SERVER_ADDRESS, FTP_SERVER_PORT_NUMBER);
+			// run the passive mode command
+			ftpClient.enterLocalPassiveMode();
+			// check reply code
+			if (!FTPReply.isPositiveCompletion(ftpClient.getReplyCode())) {
+				disconnectFTPServer();
+				throw new IOException("FTP server not respond!");
+			} else {
+				ftpClient.setSoTimeout(FTP_TIMEOUT);
+				// login ftp server
+				if (!ftpClient.login(FTP_USERNAME, FTP_PASSWORD)) {
+					throw new IOException("Username or password is incorrect!");
+				}
+				ftpClient.setDataTimeout(FTP_TIMEOUT);
+				System.out.println("Connected FTP!");
+			}
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private void disconnectFTPServer() {
+		if (ftpClient != null && ftpClient.isConnected()) {
+			try {
+				ftpClient.logout();
+				ftpClient.disconnect();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
+	}
+
+	public static void main(String[] args) throws IOException, SQLException {
+		FirstProcessing firstProcessing = new FirstProcessing();
+
+	}
+}
