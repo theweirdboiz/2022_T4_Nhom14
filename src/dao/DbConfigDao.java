@@ -1,6 +1,7 @@
 package dao;
 
-<<<<<<< HEAD
+
+import db.MySQLConnection;
 import model.DbHosting;
 
 public class DbConfigDao {
@@ -11,8 +12,6 @@ public class DbConfigDao {
 	
 	public DbHosting getDatawareHouseHosting() {
 		return null;
-=======
-import db.MySQLConnection;
 
 public class DbConfigDao {
 	
@@ -21,6 +20,6 @@ public class DbConfigDao {
 	}
 	public static void main(String[] args) {
 		DbConfigDao test = new DbConfigDao();
->>>>>>> 921ac9c47d22e8306f19e9004e4f37ce73ab21ab
+
 	}
 }
