@@ -1,6 +1,17 @@
 package dao;
 
+
 import db.MySQLConnection;
+import model.DbHosting;
+
+public class DbConfigDao {
+
+	public DbHosting getStaggingHosting() {
+		return null;
+	}
+	
+	public DbHosting getDatawareHouseHosting() {
+		return null;
 
 public class DbConfigDao {
 	
@@ -9,5 +20,6 @@ public class DbConfigDao {
 	}
 	public static void main(String[] args) {
 		DbConfigDao test = new DbConfigDao();
+
 	}
 }
