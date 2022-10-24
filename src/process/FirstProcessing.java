@@ -10,6 +10,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.apache.commons.net.ftp.FTPClient;
@@ -20,10 +21,11 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import dao.FTPConfigDao;
+import dao.SourceConfigDao;
 import db.MySQLConnection;
 
 public class FirstProcessing {
-	private final String WEB_URL = "https://thoitiet.vn";
+//	private final String WEB_URL = "https://thoitiet.vn";
 	private final String DB_URL = "jdbc:mysql://localhost:3306/control";
 	private final String USER_NAME = "root";
 	private final String PASSWORD = "";
@@ -39,27 +41,42 @@ public class FirstProcessing {
 	private FTPClient ftpClient;
 	private FTPConfigDao ftpConfigDao;
 
+	SourceConfigDao sourceConfigDao;
+
 	public FirstProcessing() {
 		connectDb = new MySQLConnection(DB_URL, USER_NAME, PASSWORD);
 	}
 
 	public void runScript() throws SQLException, IOException {
 		// 1.Get 1 row from config table
-		String query = "{CALL START_EXTRACT(?,?)}";
+		String query = "{CALL IS_EXISTED_SOURCE_ID(?)}";
 		CallableStatement callStmt;
-
+		ResultSet rs;
 		callStmt = connectDb.getConnect().prepareCall(query);
 		callStmt.setInt(1, 1);
-		callStmt.setInt(2, 1);
-		callStmt.execute();
-
+		rs = callStmt.executeQuery();
+		// 1.1 Check source have been run?
+		boolean isExisted = false;
+		while (rs.next()) {
+			isExisted = rs.getInt(1) > 0 ? true : false;
+		}
+		if (!isExisted) {
+			query = "CALL START_EXTRACT(?,?)";
+			callStmt = connectDb.getConnect().prepareCall(query);
+			callStmt.setInt(1, 1);
+			callStmt.setInt(2, 1);
+			callStmt.execute();
+		}
 		// 2.Extract data
-		String fileName = "data1.csv";
-		Document doc = Jsoup.connect(WEB_URL).get();
+		sourceConfigDao = new SourceConfigDao();
+		String fileName = sourceConfigDao.getFileName();
+		String url = sourceConfigDao.getUrl();
+
+		Document doc = Jsoup.connect(url).get();
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(fileName))));
 		Elements provinces = doc.select(".megamenu a");
 		for (int i = 0; i < provinces.size(); i++) {
-			String dataURL = WEB_URL + provinces.get(i).attr("href");
+			String dataURL = url + provinces.get(i).attr("href");
 			Document docItem = Jsoup.connect(dataURL).get();
 			// province
 			writer.write(provinces.get(i).attr("title") + ",");
@@ -187,6 +204,7 @@ public class FirstProcessing {
 
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessing firstProcessing = new FirstProcessing();
+		firstProcessing.runScript();
 
 	}
 }
