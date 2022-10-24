@@ -1,29 +1,29 @@
 package dao.control;
 
-import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import db.DbControlConnection;
 import db.MySQLConnection;
 
 public class SourceConfigDao {
 
 	String query;
-	CallableStatement callStmt;
 	PreparedStatement ps;
 	ResultSet rs;
-	MySQLConnection mySqlConnection;
+	Connection connection;
 
 	public SourceConfigDao() {
-		mySqlConnection = new MySQLConnection("jdbc:mysql://localhost:3306/control", "root", "");
+		connection = DbControlConnection.getIntance().getConnect();
 
 	}
 
 	public String getFileName() throws SQLException {
 		String fileName = "";
 		query = "SELECT fileName FROM SOURCECONFIG WHERE ID =1";
-		ps = mySqlConnection.getConnect().prepareStatement(query);
+		ps = connection.prepareStatement(query);
 		rs = ps.executeQuery();
 		while (rs.next()) {
 			fileName = rs.getString("fileName");
@@ -34,7 +34,7 @@ public class SourceConfigDao {
 	public String getUrl() throws SQLException {
 		String url = "";
 		query = "SELECT url FROM SOURCECONFIG WHERE ID =1";
-		ps = mySqlConnection.getConnect().prepareStatement(query);
+		ps = connection.prepareStatement(query);
 		rs = ps.executeQuery();
 		while (rs.next()) {
 			url = rs.getString("url");
