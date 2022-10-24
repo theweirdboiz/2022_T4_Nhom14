@@ -10,6 +10,15 @@ public class DbHosting {
 		this.userName = userName;
 		this.password = password;
 	}
+	
+	
+
+	@Override
+	public String toString() {
+		return "DbHosting [url=" + url + ", userName=" + userName + ", password=" + password + "]";
+	}
+
+
 
 	public String getUrl() {
 		return url;

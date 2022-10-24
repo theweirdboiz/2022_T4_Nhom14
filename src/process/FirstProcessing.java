@@ -19,7 +19,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import dao.FTPConfigDao;
+import dao.control.FTPConfigDao;
 import db.MySQLConnection;
 
 public class FirstProcessing {

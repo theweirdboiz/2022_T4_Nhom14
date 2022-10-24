@@ -16,7 +16,6 @@ public class MySQLConnection implements IConnection {
 			Class.forName(DATABASE_DRIVER);
 			connection = DriverManager.getConnection(url, username, password);
 			System.out.println("Connected!");
-
 		} catch (ClassNotFoundException | SQLException e) {
 			e.printStackTrace();
 		}
