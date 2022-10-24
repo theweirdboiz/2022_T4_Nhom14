@@ -1,15 +1,12 @@
 package process;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.CallableStatement;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -20,8 +17,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import dao.FTPConfigDao;
-import dao.SourceConfigDao;
+import dao.control.FTPConfigDao;
+import dao.control.SourceConfigDao;
 import db.MySQLConnection;
 
 public class FirstProcessing {

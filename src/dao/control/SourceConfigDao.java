@@ -1,4 +1,4 @@
-package dao;
+package dao.control;
 
 import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
