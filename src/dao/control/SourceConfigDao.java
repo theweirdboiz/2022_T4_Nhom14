@@ -17,12 +17,23 @@ public class SourceConfigDao {
 
 	public SourceConfigDao() {
 		connection = DbControlConnection.getIntance().getConnect();
-
 	}
 
-	public String getFileName() throws SQLException {
+	public int getId() throws SQLException {
+		int id = 1;
+		query = "SELECT ID FROM SOURCECONFIG WHERE ID =1";
+		ps = connection.prepareStatement(query);
+		rs = ps.executeQuery();
+		while (rs.next()) {
+			id = rs.getInt("ID");
+		}
+		return id;
+	}
+
+	public String getFileName(int id) throws SQLException {
 		String fileName = "";
-		query = "SELECT fileName FROM SOURCECONFIG WHERE ID =1";
+		query = "SELECT fileName FROM SOURCECONFIG WHERE ID =?";
+		ps.setInt(1, id);
 		ps = connection.prepareStatement(query);
 		rs = ps.executeQuery();
 		while (rs.next()) {
@@ -31,9 +42,10 @@ public class SourceConfigDao {
 		return fileName;
 	}
 
-	public String getUrl() throws SQLException {
+	public String getUrl(int id) throws SQLException {
 		String url = "";
-		query = "SELECT url FROM SOURCECONFIG WHERE ID =1";
+		query = "SELECT url FROM SOURCECONFIG WHERE ID =?";
+		ps.setInt(1, id);
 		ps = connection.prepareStatement(query);
 		rs = ps.executeQuery();
 		while (rs.next()) {
@@ -42,8 +54,17 @@ public class SourceConfigDao {
 		return url;
 	}
 
+	public void close() {
+		try {
+			connection.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
-		System.out.println(sourceConfigDao.getFileName());
+//		System.out.println(sourceConfigDao.getFileName());
 	}
 }
