@@ -27,6 +27,6 @@ public class DbControlConnection implements IConnection{
 
 	@Override
 	public void close() {
-		connection.close();
+		connection.close();;
 	}
 }

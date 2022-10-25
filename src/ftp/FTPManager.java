@@ -20,13 +20,18 @@ public class FTPManager {
 		ftpConfigDao = new FTPConfigDao();
 		ftpClient = new FTPConnection(ftpConfigDao.getFTPHosting()).getClient();
 	}
-	
 	public boolean pushFile(String path, String dist) throws IOException {
 		FileInputStream fis = new FileInputStream(new File(path));
 		return ftpClient.appendFile(dist, fis);
 	}
+
 	
 	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
 		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
 	}
+
+	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
+		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
+	}
+
 }

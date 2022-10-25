@@ -17,57 +17,57 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import dao.Query;
 import dao.control.FTPConfigDao;
 import dao.control.SourceConfigDao;
 import db.MySQLConnection;
 
-public class FirstProcessing {
-//	private final String WEB_URL = "https://thoitiet.vn";
-	private final String DB_URL = "jdbc:mysql://localhost:3306/control";
-	private final String USER_NAME = "root";
-	private final String PASSWORD = "";
-	MySQLConnection connectDb;
+public class FirstProcessing implements Query {
+	private MySQLConnection connectDb;
+	private SourceConfigDao sourceConfigDao;
 
-	private static final String FTP_SERVER_ADDRESS = "103.97.126.21";
-	private static final int FTP_SERVER_PORT_NUMBER = 21;
-	private static final int FTP_TIMEOUT = 60000;
-	private static final int BUFFER_SIZE = 1024 * 1024 * 1;
-	private static final String FTP_USERNAME = "ngsfihae";
-	private static final String FTP_PASSWORD = "U05IIKw0HsICPNU";
-	private static final String SLASH = "/";
-	private FTPClient ftpClient;
-	private FTPConfigDao ftpConfigDao;
-
-	SourceConfigDao sourceConfigDao;
+	private String query;
+	private CallableStatement callStmt;
+	private ResultSet rs;
+	private int sourceId;
 
 	public FirstProcessing() {
-		connectDb = new MySQLConnection(DB_URL, USER_NAME, PASSWORD);
+		// 1. Extract Data
+		// 1.1 Connect Database Control
+		sourceConfigDao = new SourceConfigDao();
 	}
 
 	public void runScript() throws SQLException, IOException {
-		// 1.Get 1 row from config table
-		String query = "{CALL IS_EXISTED_SOURCE_ID(?)}";
-		CallableStatement callStmt;
-		ResultSet rs;
+		// 1.2 Lấy thông tin từ SourceConfig table
+		// 1.3 Lấy một source id mới từ bảng SourceConfig -> Kiểm tra source id này đã
+		// tồn tại trong log và timeLoad = ngày hôm nay và có trạng thái 'EO'chưa
+		query = "{CALL IS_EXISTED_SOURCE_ID(?)}";
 		callStmt = connectDb.getConnect().prepareCall(query);
 		callStmt.setInt(1, 1);
 		rs = callStmt.executeQuery();
-		// 1.1 Check source have been run?
 		boolean isExisted = false;
 		while (rs.next()) {
 			isExisted = rs.getInt(1) > 0 ? true : false;
 		}
+		// 1.3.1 Nếu chưa - > ghi log với status 'ER'
 		if (!isExisted) {
 			query = "CALL START_EXTRACT(?,?)";
 			callStmt = connectDb.getConnect().prepareCall(query);
 			callStmt.setInt(1, 1);
 			callStmt.setInt(2, 1);
-			callStmt.execute();
+			rs = callStmt.executeQuery();
 		}
+		// 1.3.2 Nếu rồi -> Quay lại 1.3
+
 		// 2.Extract data
-		sourceConfigDao = new SourceConfigDao();
-		String fileName = sourceConfigDao.getFileName();
-		String url = sourceConfigDao.getUrl();
+
+		// 2.1 Lấy source id nào có trạng thái 'ER' và ngày ghi log = ngày hôm nay
+		// (tránh trường hợp những ngày trước chưa được extract)
+		sourceId = rs.getInt("sourceID");
+
+		// 2.2 Extract data theo source id ở 2.1
+		String fileName = sourceConfigDao.getFileName(sourceId);
+		String url = sourceConfigDao.getUrl(sourceId);
 
 		Document doc = Jsoup.connect(url).get();
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(fileName))));
@@ -103,105 +103,41 @@ public class FirstProcessing {
 			// air_quality
 			writer.write(docItem.select(".air-api.air-active").text() + "\n");
 			// time_refresh
-//			writer.write(docItem.select(".location-auto-refresh").text() + "\n");
 		}
 		writer.write("");
 		writer.flush();
 		writer.close();
 
-		connectDb.close();
-		FTPClient client = new FTPClient();
-
-		try {
-			client.connect("103.97.126.21");
-			client.login("ngsfihae", "U05IIKw0HsICPNU");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		// upload FTP
-		boolean success = uploadFTPFile(fileName);
+		// 2.3 Kiểm tra extract thành công?
+		// *Thành công
+		// 2.3.1 Lấy thông tin FTP server từ FTPConfig
+		// 2.3.2 Connect FTP server
+		// 2.3.3 Upload file với file name theo source id kiểm tra ở 2.1 -> Update
+		// status = 'EO' theo source id 1.3
+		boolean success = true;
+//				uploadFTPFile(fileName);
 		if (success) {
 			query = "{CALL FINISH_EXTRACT(?)}";
 
 		} else {
+			// *Không thành công
+			// 2.3.4 Update status = 'EF' theo source id 2.1
 			query = "CALL FAIL_EXTRACT(?)";
 
 		}
 		callStmt = connectDb.getConnect().prepareCall(query);
 		callStmt.setInt(1, 1);
 		callStmt.execute();
+		sourceConfigDao.close();
 	}
 
-//
-
-	public boolean uploadFTPFile(String ftpFilePath) {
-		FileInputStream fis = null;
-		boolean success = false;
-		try {
-			String fileName = "./data1.csv";
-			fis = new FileInputStream(fileName);
-			ftpClient.storeFile(fileName, fis);
-			ftpClient.logout();
-			success = ftpClient.completePendingCommand();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if (fis != null) {
-					fis.close();
-				}
-				ftpClient.disconnect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		if (success) {
-			System.out.println("File " + ftpFilePath + " has been uploaded successfully.");
-		}
-		return success;
-	}
-
-	private void connectFTPServer() {
-		ftpClient = new FTPClient();
-		try {
-			System.out.println("Connecting FTP server...");
-			// connect to ftp server
-			ftpClient.setDefaultTimeout(FTP_TIMEOUT);
-			ftpClient.connect(FTP_SERVER_ADDRESS, FTP_SERVER_PORT_NUMBER);
-			// run the passive mode command
-			ftpClient.enterLocalPassiveMode();
-			// check reply code
-			if (!FTPReply.isPositiveCompletion(ftpClient.getReplyCode())) {
-				disconnectFTPServer();
-				throw new IOException("FTP server not respond!");
-			} else {
-				ftpClient.setSoTimeout(FTP_TIMEOUT);
-				// login ftp server
-				if (!ftpClient.login(FTP_USERNAME, FTP_PASSWORD)) {
-					throw new IOException("Username or password is incorrect!");
-				}
-				ftpClient.setDataTimeout(FTP_TIMEOUT);
-				System.out.println("Connected FTP!");
-			}
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		}
-	}
-
-	private void disconnectFTPServer() {
-		if (ftpClient != null && ftpClient.isConnected()) {
-			try {
-				ftpClient.logout();
-				ftpClient.disconnect();
-			} catch (IOException ex) {
-				ex.printStackTrace();
-			}
-		}
-	}
+// 3. Close
+	// 3.1 Disconnect FTP
+	// 3.2 close FTP
+	// 3.3 Close Database Control
 
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessing firstProcessing = new FirstProcessing();
 		firstProcessing.runScript();
-
 	}
 }
