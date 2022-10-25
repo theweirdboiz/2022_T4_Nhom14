@@ -22,7 +22,7 @@ import dao.control.SourceConfigDao;
 import db.MySQLConnection;
 
 public class FirstProcessing {
-//	private final String WEB_URL = "https://thoitiet.vn";
+//	private final String WEB_URL = "https://vi.wikipedia.org/wiki/T%E1%BB%89nh_th%C3%A0nh_Vi%E1%BB%87t_Nam";
 	private final String DB_URL = "jdbc:mysql://localhost:3306/control";
 	private final String USER_NAME = "root";
 	private final String PASSWORD = "";
@@ -71,37 +71,14 @@ public class FirstProcessing {
 
 		Document doc = Jsoup.connect(url).get();
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(fileName))));
-		Elements provinces = doc.select(".megamenu a");
+		Elements provinces = doc.select(".wikitable a");
 		for (int i = 0; i < provinces.size(); i++) {
 			String dataURL = url + provinces.get(i).attr("href");
 			Document docItem = Jsoup.connect(dataURL).get();
 			// province
 			writer.write(provinces.get(i).attr("title") + ",");
-			// current_time
-			writer.write(docItem.select("#timer").text().replace("| ", "") + ",");
-			Element currentTemp = docItem.select(".current-temperature").first();
-			// current_temperature
-			writer.write(currentTemp.text() + ",");
-			// overview
-			writer.write(docItem.select(".overview-caption-item.overview-caption-item-detail").text() + ","); // lowest_temp
-			// lowest
-			writer.write(docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0] + ",");
-			// maximum_temp
-			writer.write(
-					docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text().split("/")[1]
-							+ ",");
-			// humidity
-			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text() + ",");
-			// vision
-			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text() + ",");
-			// wind
-			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text() + ",");
-			// stop_point
-			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text() + ",");
-			// uv_index
-			writer.write(docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text() + ",");
-			// air_quality
-			writer.write(docItem.select(".air-api.air-active").text() + "\n");
+			
+			
 			// time_refresh
 //			writer.write(docItem.select(".location-auto-refresh").text() + "\n");
 		}

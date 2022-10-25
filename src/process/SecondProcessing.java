@@ -21,7 +21,7 @@ public class SecondProcessing {
 	private static final String FTP_PASSWORD = "U05IIKw0HsICPNU";
 	private static final String SLASH = "/";
 
-	private final String WEB_URL = "https://thoitiet.vn";
+	private final String WEB_URL = "https://vi.wikipedia.org/wiki/T%E1%BB%89nh_th%C3%A0nh_Vi%E1%BB%87t_Nam";
 	private String DB_URL = "jdbc:mysql://localhost:3306/control";
 	private final String USER_NAME = "root";
 	private final String PASSWORD = "";

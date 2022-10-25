@@ -2,10 +2,10 @@ package process;
 
 import dao.control.SourceConfigDao;
 
-public class FirstProcessingExtractThoiTietEduVN {
+public class FirstProcessingExtractTinh {
 	private SourceConfigDao configDao;
 	
-	public FirstProcessingExtractThoiTietEduVN() {
+	public FirstProcessingExtractTinh() {
 		configDao = new SourceConfigDao();
 	}
 	
