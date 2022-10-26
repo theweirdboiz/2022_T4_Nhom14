@@ -1,93 +1,61 @@
 package process;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
-import org.apache.commons.net.ftp.FTPClient;
+import dao.Procedure;
+import db.DbControlConnection;
+import db.DbStagingConnection;
+import ftp.FTPManager;
 
-import com.mysql.cj.protocol.Resultset;
+public class SecondProcessing implements Procedure {
+	private FTPManager ftpManager;
+	private CallableStatement callStmt;
+	private ResultSet rs;
+	private String procedure;
+	private Connection connection;
 
-import db.MySQLConnection;
-
-public class SecondProcessing {
-	FTPClient ftpClient;
-	private static final int BUFFER_SIZE = 1024 * 1024 * 1;
-	private static final String FTP_USERNAME = "ngsfihae";
-	private static final String FTP_PASSWORD = "U05IIKw0HsICPNU";
-	private static final String SLASH = "/";
-
-	private final String WEB_URL = "https://thoitiet.vn";
-	private String DB_URL = "jdbc:mysql://localhost:3306/control";
-	private final String USER_NAME = "root";
-	private final String PASSWORD = "";
-	MySQLConnection connectDb;
-
-	MySQLConnection mySQLConnection;
-
+//2. Loading to Staging
 	public SecondProcessing() {
-		// 1. Connect db control
-		mySQLConnection = new MySQLConnection(DB_URL, USER_NAME, PASSWORD);
+		// 2.1 Connect FTPConfig -> Lấy thông tin FTP Server -> Connect FTP Server
+		ftpManager = new FTPManager();
+		connection = DbControlConnection.getIntance().getConnect();
+
 	}
 
 	public void runScript() throws SQLException {
-		// 2. Check log
-		String query = "{CALL CHECK_DATA_TODAY()}";
-		CallableStatement callStmt = mySQLConnection.getConnect().prepareCall(query);
-		Resultset rs = (Resultset) callStmt.executeQuery();
-		boolean check = !rs.getRows().isEmpty();
-		if (check) {
-			// 3. Download file FTP
-			boolean isSuccess = downloadFTPFile("filePath", "./");
-			if (isSuccess) {
-				// 3.1 get file already have been download from FTP
-				// 4. load staging
-				DB_URL = "jdbc:mysql://localhost:3306/staging";
-				mySQLConnection = new MySQLConnection(DB_URL, USER_NAME, PASSWORD);
-				loadingToStaging();
-				// 5.1 update log
-			} else {
-				// 52. update log
-			}
-		}
-	}
-
-	public void loadingToStaging() {
-		// call procedure loading
-		// write by line
-
-	}
-
-	// 1. Download file from FTP
-	private boolean downloadFTPFile(String ftpFilePath, String downloadFilePath) {
-		System.out.println("File " + ftpFilePath + " is downloading...");
-		OutputStream outputStream = null;
-		boolean success = false;
+		// 2.2 Lấy source id nào có trạng thái 'EO' và ngày ghi log = ngày hôm nay
+		procedure = Procedure.CHECK_FILE_CURRENT_IN_FTP_SERVER;
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+		LocalDateTime now = LocalDateTime.now();
+		String ext = "_data.csv";
 		try {
-			File downloadFile = new File(downloadFilePath);
-			outputStream = new BufferedOutputStream(new FileOutputStream(downloadFile));
-			// download file from FTP Server
-			ftpClient.setFileType(FTPClient.BINARY_FILE_TYPE);
-			ftpClient.setBufferSize(BUFFER_SIZE);
-			success = ftpClient.retrieveFile(ftpFilePath, outputStream);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
+			callStmt = connection.prepareCall(procedure);
+			rs = callStmt.executeQuery();
+			rs.next();
+			int currentFileId = rs.getInt(1);
+//			2.3 downloadFile -> Lấy thông tin từ dbConfig table -> Connect db Staging
+			connection = DbStagingConnection.getIntance().getConnect();
 			try {
-				outputStream.close();
+				BufferedReader br = ftpManager.getReaderFileInFTPServer(now + ext);
+				String line;
+				while ((line = br.readLine()) != null) {
+					// LOAD BY LINE
+				}
 			} catch (IOException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		if (success) {
-			System.out.println("File " + ftpFilePath + " has been downloaded successfully.");
-		} else {
-		}
-		return success;
 	}
 
 	public static void main(String[] args) throws SQLException {

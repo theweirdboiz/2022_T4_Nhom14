@@ -92,10 +92,17 @@ public class FTPConfigDao {
 			statement.setInt(1, 1);
 			ResultSet result = statement.executeQuery();
 			return result.next() 
-					? new FTPHosting(result.getString("hosting"), result.getInt("port"), result.getString("username"), result.getString("password"))
+					? new FTPHosting(result.getString("host"), result.getInt("port"), result.getString("username"), result.getString("password"))
 					: null;
 		} catch (SQLException e) {
-			return null;
+			e.printStackTrace();
 		}
+		return null;
+	}
+	public static void main(String[] args) {
+//		FTPHosting ftpHosting = new 
+		FTPConfigDao configDao = new FTPConfigDao();
+		FTPHosting ftpHosting = configDao.getFTPHosting();
+//		System.out.println(ftpHosting);
 	}
 }

@@ -1,8 +1,8 @@
 package dao;
 
 public interface Query {
-	String GET_DB_HOSTING = "select host, username, password from dbconfig where type = ? and using = ?";
-	String GET_FTP_HOSTING = "select host, port, username, password from ftpconfig where using = ?";
+	String GET_DB_HOSTING = "select host, username, password from dbconfig where type = ? and `using` = ?";
+	String GET_FTP_HOSTING = "select host, port, username, password from ftpconfig where `using` = ?";
 	String GET_URL_SOURCE = "select url from sourceconfig where id = ?";
 	String GET_FILENAME_SOURCE = "select fileName from sourceconfig where id = ?";
 	String INSERT_LOG_DEFAULT = "insert into log values (?,?,?,?)";

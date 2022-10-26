@@ -3,7 +3,6 @@ package ftp;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -20,18 +19,22 @@ public class FTPManager {
 		ftpConfigDao = new FTPConfigDao();
 		ftpClient = new FTPConnection(ftpConfigDao.getFTPHosting()).getClient();
 	}
+
 	public boolean pushFile(String path, String dist) throws IOException {
 		FileInputStream fis = new FileInputStream(new File(path));
 		return ftpClient.appendFile(dist, fis);
 	}
 
-	
 	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
 		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
 	}
 
-	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
-		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
+	public void close() {
+		try {
+			ftpClient.disconnect();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
-
 }

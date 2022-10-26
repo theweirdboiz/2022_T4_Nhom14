@@ -29,14 +29,15 @@ public class SourceConfigDao {
 		while (rs.next()) {
 			id = rs.getInt("ID");
 		}
+		System.out.println(id);
 		return id;
 	}
 
 	public String getFileName(int id) throws SQLException {
 		String fileName = "";
 		query = "SELECT fileName FROM SOURCECONFIG WHERE ID =?";
-		ps.setInt(1, id);
 		ps = connection.prepareStatement(query);
+		ps.setInt(1, id);
 		rs = ps.executeQuery();
 		while (rs.next()) {
 			fileName = rs.getString("fileName");
@@ -47,15 +48,15 @@ public class SourceConfigDao {
 	public String getUrl(int id) throws SQLException {
 		String url = "";
 		query = "SELECT url FROM SOURCECONFIG WHERE ID =?";
-		ps.setInt(1, id);
 		ps = connection.prepareStatement(query);
+		ps.setInt(1, id);
 		rs = ps.executeQuery();
 		while (rs.next()) {
 			url = rs.getString("url");
 		}
 		return url;
 	}
-	
+
 	public String getURL(String id) {
 		try {
 			query = Query.GET_URL_SOURCE;
@@ -67,7 +68,7 @@ public class SourceConfigDao {
 			return null;
 		}
 	}
-	
+
 	public String getFileName(String id) {
 		try {
 			query = Query.GET_FILENAME_SOURCE;
@@ -91,7 +92,7 @@ public class SourceConfigDao {
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
-		System.out.println(sourceConfigDao.getURL("1"));
+//		System.out.println(sourceConfigDao.getURL("1"));
 //		System.out.println(sourceConfigDao.getFileName());
 	}
 }

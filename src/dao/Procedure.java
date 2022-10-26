@@ -1,0 +1,14 @@
+package dao;
+
+public interface Procedure {
+	// process1
+	String IS_EXISTED = "{CALL IS_EXISTED_SOURCE_ID(?)}";
+	String START_EXTRACT = "{CALL START_EXTRACT(?,?)}";
+	String FINISH_EXTRACT = "{CALL FINISH_EXTRACT(?)}";
+	String FAIL_EXTRACT = "{CALL FAIL_EXTRACT(?)}";
+	String CHECK_DATA_TODAY = "{CALL CHECK_DATA_TODAY(?)}";
+	String GET_CURRENT_SOURCE_ID = "{CALL GET_CURRENT_SOURCE_ID()}";
+
+	// process2
+	String CHECK_FILE_CURRENT_IN_FTP_SERVER = "{CALL CHECK_FILE_CURRENT_IN_FTP_SERVER(?)}";
+}

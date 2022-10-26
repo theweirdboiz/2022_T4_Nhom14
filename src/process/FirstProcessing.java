@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -17,33 +18,38 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import dao.Procedure;
 import dao.Query;
 import dao.control.FTPConfigDao;
 import dao.control.SourceConfigDao;
+import db.DbControlConnection;
 import db.MySQLConnection;
+import ftp.FTPManager;
 
-public class FirstProcessing implements Query {
-	private MySQLConnection connectDb;
+public class FirstProcessing implements Query, Procedure {
 	private SourceConfigDao sourceConfigDao;
-
-	private String query;
 	private CallableStatement callStmt;
 	private ResultSet rs;
-	private int sourceId;
+	private String procedure;
+	private FTPManager ftpManager;
+	Connection connection;
 
+	// 1. Extract Data
 	public FirstProcessing() {
-		// 1. Extract Data
 		// 1.1 Connect Database Control
 		sourceConfigDao = new SourceConfigDao();
+		connection = DbControlConnection.getIntance().getConnect();
+		ftpManager = new FTPManager();
 	}
 
 	public void runScript() throws SQLException, IOException {
 		// 1.2 Lấy thông tin từ SourceConfig table
 		// 1.3 Lấy một source id mới từ bảng SourceConfig -> Kiểm tra source id này đã
 		// tồn tại trong log và timeLoad = ngày hôm nay và có trạng thái 'EO'chưa
-		query = "{CALL IS_EXISTED_SOURCE_ID(?)}";
-		callStmt = connectDb.getConnect().prepareCall(query);
-		callStmt.setInt(1, 1);
+		int sourceId = sourceConfigDao.getId();
+		procedure = Procedure.IS_EXISTED;
+		callStmt = connection.prepareCall(procedure);
+		callStmt.setInt(1, sourceId);
 		rs = callStmt.executeQuery();
 		boolean isExisted = false;
 		while (rs.next()) {
@@ -51,10 +57,10 @@ public class FirstProcessing implements Query {
 		}
 		// 1.3.1 Nếu chưa - > ghi log với status 'ER'
 		if (!isExisted) {
-			query = "CALL START_EXTRACT(?,?)";
-			callStmt = connectDb.getConnect().prepareCall(query);
+			procedure = Procedure.START_EXTRACT;
+			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, 1);
-			callStmt.setInt(2, 1);
+			callStmt.setInt(2, sourceId);
 			rs = callStmt.executeQuery();
 		}
 		// 1.3.2 Nếu rồi -> Quay lại 1.3
@@ -63,12 +69,15 @@ public class FirstProcessing implements Query {
 
 		// 2.1 Lấy source id nào có trạng thái 'ER' và ngày ghi log = ngày hôm nay
 		// (tránh trường hợp những ngày trước chưa được extract)
-		sourceId = rs.getInt("sourceID");
+		procedure = Procedure.GET_CURRENT_SOURCE_ID;
+		callStmt = connection.prepareCall(procedure);
+		rs = callStmt.executeQuery();
+		rs.next();
+		int sourceIdCurrent = rs.getInt("sourceId");
+		String fileName = sourceConfigDao.getFileName(sourceIdCurrent);
+		String url = sourceConfigDao.getUrl(sourceIdCurrent);
 
 		// 2.2 Extract data theo source id ở 2.1
-		String fileName = sourceConfigDao.getFileName(sourceId);
-		String url = sourceConfigDao.getUrl(sourceId);
-
 		Document doc = Jsoup.connect(url).get();
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(fileName))));
 		Elements provinces = doc.select(".megamenu a");
@@ -111,30 +120,30 @@ public class FirstProcessing implements Query {
 		// 2.3 Kiểm tra extract thành công?
 		// *Thành công
 		// 2.3.1 Lấy thông tin FTP server từ FTPConfig
+
 		// 2.3.2 Connect FTP server
 		// 2.3.3 Upload file với file name theo source id kiểm tra ở 2.1 -> Update
 		// status = 'EO' theo source id 1.3
-		boolean success = true;
+		boolean success = ftpManager.pushFile(fileName, fileName);
 //				uploadFTPFile(fileName);
 		if (success) {
-			query = "{CALL FINISH_EXTRACT(?)}";
-
-		} else {
+			procedure = Procedure.FINISH_EXTRACT;
 			// *Không thành công
+		} else {
 			// 2.3.4 Update status = 'EF' theo source id 2.1
-			query = "CALL FAIL_EXTRACT(?)";
+			procedure = Procedure.FAIL_EXTRACT;
 
 		}
-		callStmt = connectDb.getConnect().prepareCall(query);
+		callStmt = connection.prepareCall(procedure);
 		callStmt.setInt(1, 1);
 		callStmt.execute();
-		sourceConfigDao.close();
-	}
 
-// 3. Close
-	// 3.1 Disconnect FTP
-	// 3.2 close FTP
-	// 3.3 Close Database Control
+		// 3. Close
+		// 3.1 Disconnect FTP
+		// 3.2 Close Database Control
+		ftpManager.close();
+		connection.close();
+	}
 
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessing firstProcessing = new FirstProcessing();
