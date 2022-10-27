@@ -21,12 +21,21 @@ public class FTPManager {
 		ftpClient = new FTPConnection(ftpConfigDao.getFTPHosting()).getClient();
 	}
 	
-	public boolean pushFile(String path, String dist) throws IOException {
+	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
 		FileInputStream fis = new FileInputStream(new File(path));
-		return ftpClient.appendFile(dist, fis);
+		ftpClient.makeDirectory(distFolder);
+		return ftpClient.storeFile(distFolder + "/" + fileName, fis);
 	}
 	
 	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
 		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
+	}
+	
+	public void close() {
+		try {
+			ftpClient.disconnect();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
