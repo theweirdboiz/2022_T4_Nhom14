@@ -65,6 +65,30 @@ public class SourceConfigDao {
 			return null;
 		}
 	}
+	
+	public String getPathFolder(String id) {
+		try {
+			query = Query.GET_PATH_FOLDER_SOURCE;
+			ps = connection.prepareStatement(query);
+			ps.setString(1, id);
+			rs = ps.executeQuery();
+			return rs.next() ? rs.getString("pathFolder") : null;
+		} catch (SQLException e) {
+			return null;
+		}
+	}
+	
+	public String getDistFolder(String id) {
+		try {
+			query = Query.GET_DIST_FOLDER_SOURCE;
+			ps = connection.prepareStatement(query);
+			ps.setString(1, id);
+			rs = ps.executeQuery();
+			return rs.next() ? rs.getString("distFolder") : null;
+		} catch (SQLException e) {
+			return null;
+		}
+	}
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
