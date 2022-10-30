@@ -22,13 +22,13 @@ public class MySQLConnection implements IConnection {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public MySQLConnection(DbHosting dbHosting) {
 		try {
 			System.out.println("Connecting...");
 			Class.forName(DATABASE_DRIVER);
-			connection = DriverManager.getConnection(dbHosting.getUrl()
-					, dbHosting.getUserName(), dbHosting.getPassword());
+			connection = DriverManager.getConnection(dbHosting.getUrl(), dbHosting.getUserName(),
+					dbHosting.getPassword());
 			System.out.println("Connected!");
 		} catch (ClassNotFoundException | SQLException e) {
 			e.printStackTrace();
