@@ -31,7 +31,7 @@ import db.DbControlConnection;
 import db.MySQLConnection;
 import ftp.FTPManager;
 
-public class FirstProcessing implements Query, Procedure, CurrentTimeStamp {
+public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeStamp {
 
 	private FTPManager ftpManager;
 	private Connection connection;
@@ -48,7 +48,7 @@ public class FirstProcessing implements Query, Procedure, CurrentTimeStamp {
 	private String path;
 
 	// 1. Extract Data
-	public FirstProcessing() {
+	public FirstProcessingThoiTietVn() {
 		// 1.1 Connect Database Control
 		connection = DbControlConnection.getIntance().getConnect();
 		sourceConfigDao = new SourceConfigDao();
@@ -178,7 +178,7 @@ public class FirstProcessing implements Query, Procedure, CurrentTimeStamp {
 	}
 
 	public static void main(String[] args) throws IOException, SQLException {
-		FirstProcessing firstProcessing = new FirstProcessing();
+		FirstProcessingThoiTietVn firstProcessing = new FirstProcessingThoiTietVn();
 		firstProcessing.runScript();
 	}
 }

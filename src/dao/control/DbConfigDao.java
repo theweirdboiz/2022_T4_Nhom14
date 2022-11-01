@@ -27,7 +27,7 @@ public class DbConfigDao {
 			statement.setInt(2, 1);
 			ResultSet result = statement.executeQuery();
 			return result.next()
-					? new DbHosting(result.getString("hosting"), result.getString("username"),
+					? new DbHosting(result.getString("host"), result.getString("username"),
 							result.getString("password"))
 					: null;
 		} catch (SQLException e) {
@@ -43,7 +43,7 @@ public class DbConfigDao {
 			statement.setInt(2, 1);
 			ResultSet result = statement.executeQuery();
 			return result.next()
-					? new DbHosting(result.getString("hosting"), result.getString("username"),
+					? new DbHosting(result.getString("host"), result.getString("username"),
 							result.getString("password"))
 					: null;
 		} catch (SQLException e) {
