@@ -12,6 +12,8 @@ public interface Procedure {
 	// process2
 	String DELETE_DATE_DIM = "{CALL DELETE_DATE_DIM()}";
 	String LOAD_DATE_DIM = "{CALL LOAD_DATE_DIM(?,?,?,?,?,?)}";
-	String LOAD_PROVINCE_DIM = "{CALL LOAD_PROVINCE_DIM()}";
+	String LOAD_PROVINCE_DIM = "{CALL LOAD_PROVINCE_DIM(?,?)}";
+
 	String CHECK_FILE_CURRENT_IN_FTP_SERVER = "{CALL CHECK_FILE_CURRENT_IN_FTP_SERVER(?)}";
+
 }
