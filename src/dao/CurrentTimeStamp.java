@@ -1,13 +1,28 @@
 package dao;
 
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
+import java.util.Date;
 
 public interface CurrentTimeStamp {
-	DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-mm-dd_hh-mm-ss");
-	LocalDateTime now = LocalDateTime.now();
+	Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+	SimpleDateFormat dtf = new SimpleDateFormat("yyyy-MM-dd_hh");
 
 	public static String getCurrentTimeStamp() {
-		return dtf.format(now);
+		return dtf.format(timestamp);
+	}
+
+	public static String getCurrentDate() {
+		SimpleDateFormat dt = new SimpleDateFormat("yyyy-MM-dd");
+		Calendar calendar = Calendar.getInstance();
+		String currentDate = dt.format(calendar.getTime());
+		return currentDate;
+	}
+
+	public static void main(String[] args) {
+		System.out.println(CurrentTimeStamp.getCurrentTimeStamp());
 	}
 }

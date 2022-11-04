@@ -5,9 +5,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public interface IdCreater {
 	static final AtomicInteger ID = new AtomicInteger(0);
 
-	public static String createIdByCurrentTime() {
+	public static int createIdByCurrentTime() {
 		String currentTime = String.valueOf(System.currentTimeMillis());
-		return currentTime.substring(currentTime.length() - 10, currentTime.length());
+		return Integer.parseInt(currentTime.substring(currentTime.length() - 8, currentTime.length()));
 	}
 
 	public static int generateUniqueId() {

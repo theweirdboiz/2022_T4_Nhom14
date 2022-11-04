@@ -10,12 +10,7 @@ import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPReply;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -25,10 +20,10 @@ import dao.CurrentTimeStamp;
 import dao.IdCreater;
 import dao.Procedure;
 import dao.Query;
-import dao.control.FTPConfigDao;
+
 import dao.control.SourceConfigDao;
 import db.DbControlConnection;
-import db.MySQLConnection;
+
 import ftp.FTPManager;
 
 public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeStamp {
@@ -44,8 +39,8 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 
 	private static final int SOURCE_ID = 1;
 	private String sourceUrl;
-	private String fileName;
-	private String path;
+	private String fileName, preFileName;
+	private String path, prePath;
 
 	// 1. Extract Data
 	public FirstProcessingThoiTietVn() {
@@ -68,34 +63,39 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		if (rs.next()) {
 			isExisted = rs.getInt(1) > 0 ? true : false;
 		}
-		// 1.3.1 Nếu chưa - > ghi log với status 'ER'
-		// Nếu rồi -> Quay lại 1.3
+//		// 1.3.1 Nếu chưa - > ghi log với status 'ER'
+//		// Nếu rồi -> Quay lại 1.3
 		if (!isExisted) {
 			procedure = Procedure.START_EXTRACT;
 			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, IdCreater.generateUniqueId());
+			callStmt.setInt(1, IdCreater.createIdByCurrentTime());
 			callStmt.setInt(2, SOURCE_ID);
 			rs = callStmt.executeQuery();
 		}
-		// 2.Extract data
+//		// 2.Extract data
 		System.out.println("Extracting...");
 		String ext = ".csv";
-		fileName = CurrentTimeStamp.getCurrentTimeStamp();
+		// Tạo filename ở ngày và giờ hiện tại
+		fileName = CurrentTimeStamp.getCurrentTimeStamp() + ext;
+		preFileName = "pre_" + CurrentTimeStamp.getCurrentTimeStamp() + ext;
 
-		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID));
-
+		File folderExtract = new File(
+				sourceConfigDao.getPathFolder(SOURCE_ID) + File.separator + CurrentTimeStamp.getCurrentDate());
 		if (!folderExtract.exists()) {
-			folderExtract.mkdir();
+			folderExtract.mkdirs();
 		}
+
 		path = folderExtract.getAbsolutePath() + File.separator + fileName;
+		prePath = folderExtract.getAbsolutePath() + File.separator + preFileName;
 		// 2.2 Extract data theo source id ở 2.1
-		PrintWriter writer = new PrintWriter(new File(path));
+
+		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(path))));
+		PrintWriter preWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(prePath))));
 
 		Document doc = Jsoup.connect(sourceUrl).get();
 
 		Elements provinces = doc.select(".megamenu a");
 
-		writer.write(CurrentTimeStamp.getCurrentTimeStamp() + "\n");
 		String separator = ", ";
 		for (int i = 0; i < provinces.size(); i++) {
 			int id = IdCreater.generateUniqueId();
@@ -129,6 +129,11 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			// air_quality
 			String airQualityText = docItem.select(".air-api.air-active").text();
 
+			preWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
+					+ overViewText + separator + lowestTempText + separator + maximumText + separator + maximumText
+					+ separator + visionText + separator + windText + separator + stopPointText + separator
+					+ uvIndexText + separator + airQualityText + "\n");
+
 			// pretreatment
 			int currentTemperatureNum = Integer
 					.parseInt(currentTemperatureText.substring(0, currentTemperatureText.length() - 1).trim());
@@ -145,8 +150,11 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 					+ separator + lowestTemperatureNum + separator + maximumTemperatureNum + separator + humidityFloat
 					+ separator + visionNum + separator + windFloat + separator + stopPointNum + separator
 					+ uvIndexFloat + separator + airQualityText + "\n");
+
 		}
+		preWriter.flush();
 		writer.flush();
+		preWriter.close();
 		writer.close();
 
 		// 2.3 Kiểm tra extract thành công?
@@ -156,7 +164,15 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		// 2.3.2 Connect FTP server
 		// 2.3.3 Upload file với file name theo source id kiểm tra ở 2.1 -> Update
 		// status = 'EO' theo source id 1.3
-		boolean success = ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID), fileName);
+		String disFolderFTP = sourceConfigDao.getDistFolder(SOURCE_ID);
+
+//		System.out.println(disFolderFTP);
+		boolean success = ftpManager.pushFile(path, disFolderFTP, fileName)
+				& ftpManager.pushFile(prePath, disFolderFTP, preFileName);
+//		boolean preSuccess = ftpManager.pushFile(prePath, disFolderFTP, preFileName);
+
+//		boolean preSuccess = ftpManager.pushFile(prePath, disFolderFTP, preFileName);
+
 		if (success) {
 			procedure = Procedure.FINISH_EXTRACT;
 			System.out.println("Extract success");
@@ -167,6 +183,7 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			System.out.println("Extract fail");
 
 		}
+
 		callStmt = connection.prepareCall(procedure);
 		callStmt.setInt(1, 1);
 		callStmt.execute();
@@ -180,5 +197,6 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessingThoiTietVn firstProcessing = new FirstProcessingThoiTietVn();
 		firstProcessing.runScript();
+//		System.out.println(CurrentTimeStamp.getCurrentTimeStamp());
 	}
 }
