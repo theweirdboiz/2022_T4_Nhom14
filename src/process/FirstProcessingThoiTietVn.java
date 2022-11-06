@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.apache.commons.net.ftp.FTPClient;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -39,8 +40,8 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 
 	private static final int SOURCE_ID = 1;
 	private String sourceUrl;
-	private String fileName, preFileName;
-	private String path, prePath;
+	private String fileName, rawFileName;
+	private String path, rawPath;
 
 	// 1. Extract Data
 	public FirstProcessingThoiTietVn() {
@@ -51,46 +52,55 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		sourceUrl = sourceConfigDao.getURL(SOURCE_ID);
 	}
 
-	public void runScript() throws SQLException, IOException {
-		// 1.2 Lấy thông tin từ SourceConfig table
-		// 1.3 Lấy một source id mới từ bảng SourceConfig -> Kiểm tra source id này đã
-		// tồn tại trong log và timeLoad = ngày hôm nay và có trạng thái 'EO'chưa
+	public boolean runScript() throws SQLException, IOException {
+		// 1. Trước khi chạy script, vào ghi log, source nào? thời gian? trạng thái?
+		// 1.1 Kiểm tra source này đã được ghi vào ngày hôm nay và giờ hiện tại hay
+		// chưa?
 		procedure = Procedure.IS_EXISTED;
 		callStmt = connection.prepareCall(procedure);
 		callStmt.setInt(1, SOURCE_ID);
 		rs = callStmt.executeQuery();
 		boolean isExisted = false;
+		int logId = IdCreater.createIdByCurrentTime();
 		if (rs.next()) {
 			isExisted = rs.getInt(1) > 0 ? true : false;
 		}
-//		// 1.3.1 Nếu chưa - > ghi log với status 'ER'
-//		// Nếu rồi -> Quay lại 1.3
+		// 1.1.2 Nếu chưa - > ghi log với status 'ER', ngược lại -> kết thúc
 		if (!isExisted) {
+			System.out.println("Ghi log");
 			procedure = Procedure.START_EXTRACT;
 			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, IdCreater.createIdByCurrentTime());
+			callStmt.setInt(1, logId);
 			callStmt.setInt(2, SOURCE_ID);
-			rs = callStmt.executeQuery();
+			callStmt.execute();
+		} else {
+			System.out.println("Đã có dữ liệu vào thời điểm: " + CurrentTimeStamp.getCurrentTimeStamp());
+			return false;
 		}
-//		// 2.Extract data
-		System.out.println("Extracting...");
+		// 2.Extract data theo source id đã xác định ở bước 1
+		System.out.println("Bắt đầu extract dữ liệu vào thời điểm: " + CurrentTimeStamp.getCurrentDate());
 		String ext = ".csv";
+
 		// Tạo filename ở ngày và giờ hiện tại
 		fileName = CurrentTimeStamp.getCurrentTimeStamp() + ext;
-		preFileName = "pre_" + CurrentTimeStamp.getCurrentTimeStamp() + ext;
+		rawFileName = "raw" + CurrentTimeStamp.getCurrentTimeStamp() + ext;
 
+		// Kiểm tra folder đã tồn tại hay chưa, nếu chưa thì tạo mới
 		File folderExtract = new File(
 				sourceConfigDao.getPathFolder(SOURCE_ID) + File.separator + CurrentTimeStamp.getCurrentDate());
 		if (!folderExtract.exists()) {
+			System.out.println("Tạo mới folder chưa file dữ liệu đã extract!");
 			folderExtract.mkdirs();
 		}
 
+		// Lấy đường dẫn tuyệt đối của file cần ghi
 		path = folderExtract.getAbsolutePath() + File.separator + fileName;
-		prePath = folderExtract.getAbsolutePath() + File.separator + preFileName;
-		// 2.2 Extract data theo source id ở 2.1
+		rawPath = folderExtract.getAbsolutePath() + File.separator + rawFileName;
+
+		// 2.1 Tiến hành extract
 
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(path))));
-		PrintWriter preWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(prePath))));
+		PrintWriter rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawPath))));
 
 		Document doc = Jsoup.connect(sourceUrl).get();
 
@@ -129,7 +139,7 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			// air_quality
 			String airQualityText = docItem.select(".air-api.air-active").text();
 
-			preWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
+			rawWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
 					+ overViewText + separator + lowestTempText + separator + maximumText + separator + maximumText
 					+ separator + visionText + separator + windText + separator + stopPointText + separator
 					+ uvIndexText + separator + airQualityText + "\n");
@@ -152,51 +162,51 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 					+ uvIndexFloat + separator + airQualityText + "\n");
 
 		}
-		preWriter.flush();
+		rawWriter.flush();
 		writer.flush();
-		preWriter.close();
+		rawWriter.close();
 		writer.close();
 
-		// 2.3 Kiểm tra extract thành công?
-		// *Thành công
-		// 2.3.1 Lấy thông tin FTP server từ FTPConfig
+		// 2.2 Kiểm tra kết quả extract
+		// 2.2.1 Lấy thông tin FTP server từ FTPConfig
+		// 2.2.2 Connect FTP server
 
-		// 2.3.2 Connect FTP server
-		// 2.3.3 Upload file với file name theo source id kiểm tra ở 2.1 -> Update
-		// status = 'EO' theo source id 1.3
+		// 2.3 Thành công
+		// 2.3.1 Upload file lên FTP server
 		String disFolderFTP = sourceConfigDao.getDistFolder(SOURCE_ID);
 
-//		System.out.println(disFolderFTP);
 		boolean success = ftpManager.pushFile(path, disFolderFTP, fileName)
-				& ftpManager.pushFile(prePath, disFolderFTP, preFileName);
-//		boolean preSuccess = ftpManager.pushFile(prePath, disFolderFTP, preFileName);
-
-//		boolean preSuccess = ftpManager.pushFile(prePath, disFolderFTP, preFileName);
-
+				& ftpManager.pushFile(rawPath, disFolderFTP, rawFileName);
 		if (success) {
+			// 2.3.2 Cập nhật log với trạng thái 'EO'
 			procedure = Procedure.FINISH_EXTRACT;
-			System.out.println("Extract success");
-			// *Không thành công
+			System.out.println("Extract dữ liệu thành công vào folder trên FTP: " + disFolderFTP);
+			ftpManager.listFolder(ftpManager.getClient(), disFolderFTP);
+			// 2.4 Không thành công
 		} else {
-			// 2.3.4 Update status = 'EF' theo source id 2.1
+			// Cập nhật log với trạng thái 'EF'
 			procedure = Procedure.FAIL_EXTRACT;
-			System.out.println("Extract fail");
-
+			System.out.println("Extract dữ liệu không thành công, vui lòng kiểm tra lại quá trình upload file");
 		}
-
 		callStmt = connection.prepareCall(procedure);
-		callStmt.setInt(1, 1);
+		callStmt.setInt(1, logId);
 		callStmt.execute();
+
 		// 3. Close
 		// 3.1 Disconnect FTP
 		// 3.2 Close Database Control
 		ftpManager.close();
 		connection.close();
+		return true;
 	}
 
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessingThoiTietVn firstProcessing = new FirstProcessingThoiTietVn();
-		firstProcessing.runScript();
-//		System.out.println(CurrentTimeStamp.getCurrentTimeStamp());
+		boolean result = firstProcessing.runScript();
+		if (result) {
+			System.out.println("Process 1: success!");
+		} else {
+			System.out.println("Process 1: try again!");
+		}
 	}
 }

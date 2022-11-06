@@ -40,6 +40,10 @@ public class FTPManager {
 		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
 	}
 
+	public FTPClient getClient() {
+		return this.ftpClient;
+	}
+
 	public void close() {
 		try {
 			ftpClient.disconnect();
@@ -50,7 +54,7 @@ public class FTPManager {
 	}
 
 	public static void listFolder(FTPClient ftpClient, String remotePath) throws IOException {
-		System.out.println("Listing folder " + remotePath);
+		System.out.println("Danh sách file của [" + remotePath + "]: ");
 		FTPFile[] remoteFiles = ftpClient.listFiles(remotePath);
 		for (FTPFile remoteFile : remoteFiles) {
 			if (!remoteFile.getName().equals(".") && !remoteFile.getName().equals("..")) {
@@ -59,7 +63,7 @@ public class FTPManager {
 				if (remoteFile.isDirectory()) {
 					listFolder(ftpClient, remoteFilePath);
 				} else {
-					System.out.println("Foud remote file " + remoteFilePath);
+					System.out.println("* File: " + remoteFilePath);
 				}
 			}
 		}
@@ -68,6 +72,8 @@ public class FTPManager {
 	public static void main(String[] args) throws IOException {
 		FTPManager ftpManager = new FTPManager();
 //		ftpClient.makeDirectory("weather_extract\\2022-11-04");
+//		ftpClient.deleteFile("weather_extract/pre_2022-11-06_10.csv");
+//		ftpClient.removeDirectory("weather_extract/2022-11-04");
 		ftpManager.listFolder(ftpClient, "weather_extract");
 //		System.out.println(ftpManager.checkDirectoryExists("weather_extract/2022-11-04"));
 	}

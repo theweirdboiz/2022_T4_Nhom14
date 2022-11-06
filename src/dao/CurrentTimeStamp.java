@@ -9,7 +9,7 @@ import java.util.Date;
 
 public interface CurrentTimeStamp {
 	Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-	SimpleDateFormat dtf = new SimpleDateFormat("yyyy-MM-dd_hh");
+	SimpleDateFormat dtf = new SimpleDateFormat("yyyy-MM-dd_HH");
 
 	public static String getCurrentTimeStamp() {
 		return dtf.format(timestamp);
