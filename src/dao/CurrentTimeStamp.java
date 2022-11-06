@@ -22,6 +22,10 @@ public interface CurrentTimeStamp {
 		return currentDate;
 	}
 
+	public static String getCurrentDate(String date, String hour) {
+		return date + "_" + hour;
+	}
+
 	public static void main(String[] args) {
 		System.out.println(CurrentTimeStamp.getCurrentTimeStamp());
 	}

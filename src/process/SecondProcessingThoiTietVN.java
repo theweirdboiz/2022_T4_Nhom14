@@ -8,8 +8,10 @@ import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -17,6 +19,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import dao.CreateDateDim;
+import dao.CurrentTimeStamp;
 import dao.Procedure;
 import dao.control.DbConfigDao;
 import dao.control.SourceConfigDao;
@@ -36,6 +39,7 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 	private SourceConfigDao sourceConfigDao;
 	private final static int SOURCE_ID = 1;
 	private final static int SOURCE_DIM_ID = 3;
+	private final static String EXTENSION = ".csv";
 
 //2. Loading to Staging
 	public SecondProcessingThoiTietVN() {
@@ -143,6 +147,48 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 
 	}
 
+	public boolean loadData() {
+		// Vào log, kiểm tra có file mới được upload lên FTP server hay không bằng cách
+		// check status = EO?
+		try {
+			procedure = Procedure.IS_EXISTED;
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, SOURCE_ID);
+			rs = callStmt.executeQuery();
+			boolean isExisted = false;
+			if (rs.next()) {
+				isExisted = rs.getInt(1) > 0 ? true : false;
+			}
+			// Nếu có
+			// Lấy một dòng dữ liệu, lấy timeLoad từ dòng đó -> tìm đến folder trên FTP theo
+			// timeLoad
+			String dateLoad = sourceConfigDao.getTimeLoad(SOURCE_ID).split(" ")[0];
+			String hourLoad = sourceConfigDao.getTimeLoad(SOURCE_ID).split(" ")[1].split(":")[0];
+			String path = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + dateLoad + "/"
+					+ CurrentTimeStamp.getCurrentDate(dateLoad, hourLoad + EXTENSION);
+			System.out.println(path);
+			try {
+				System.out.println(path);
+				BufferedReader br = ftpManager.getReaderFileInFTPServer(path);
+				String line;
+				while ((line = br.readLine()) != null) {
+					System.out.println(line);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+
+		// download file
+
+		// insert by row into statging
+
+//		Nếu không -> Kết thúc
+		return false;
+	}
+
 	public void runScript() throws SQLException {
 		this.loadDateDim();
 		this.loadProvinceDim();
@@ -175,7 +221,7 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 
 	public static void main(String[] args) throws SQLException, IOException {
 		SecondProcessingThoiTietVN sp = new SecondProcessingThoiTietVN();
-//		sp.runScript();
+		sp.loadData();
 
 	}
 }

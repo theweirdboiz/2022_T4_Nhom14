@@ -6,10 +6,11 @@ public interface Procedure {
 	String START_EXTRACT = "{CALL START_EXTRACT(?,?)}";
 	String FINISH_EXTRACT = "{CALL FINISH_EXTRACT(?)}";
 	String FAIL_EXTRACT = "{CALL FAIL_EXTRACT(?)}";
-	String CHECK_DATA_TODAY = "{CALL CHECK_DATA_TODAY(?)}";
 	String GET_CURRENT_SOURCE_ID = "{CALL GET_CURRENT_SOURCE_ID()}";
+	String GET_TIMELOAD = "{CALL GET_TIMELOAD(?)}";
 
 	// process2
+	String LOAD_WEATHER_DATA = "{CALL LOAD_WEATHER_DATA VALUES(?,?,?,?,?,?,?,?,?,?)}";
 	String DELETE_DATE_DIM = "{CALL DELETE_DATE_DIM()}";
 	String LOAD_DATE_DIM = "{CALL LOAD_DATE_DIM(?,?,?,?,?,?)}";
 	String LOAD_PROVINCE_DIM = "{CALL LOAD_PROVINCE_DIM(?,?)}";

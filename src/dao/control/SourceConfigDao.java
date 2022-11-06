@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import dao.Procedure;
 import dao.Query;
 import db.DbControlConnection;
 import db.MySQLConnection;
@@ -56,6 +57,19 @@ public class SourceConfigDao {
 		}
 	}
 
+	public String getTimeLoad(int id) {
+		try {
+			query = Procedure.GET_TIMELOAD;
+			ps = connection.prepareStatement(query);
+			ps.setInt(1, id);
+			rs = ps.executeQuery();
+			return rs.next() ? rs.getString("timeLoad") : null;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	public String getURL(int id) {
 		try {
 			query = Query.GET_URL_SOURCE;
@@ -78,6 +92,7 @@ public class SourceConfigDao {
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
+		System.out.println(sourceConfigDao.getTimeLoad(1));
 //		System.out.println(sourceConfigDao.getURL("1"));
 //		System.out.println(sourceConfigDao.getFileName());
 	}

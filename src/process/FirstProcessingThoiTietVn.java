@@ -84,7 +84,7 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		// Tạo filename ở ngày và giờ hiện tại
 		fileName = CurrentTimeStamp.getCurrentTimeStamp() + ext;
 		rawFileName = "raw" + CurrentTimeStamp.getCurrentTimeStamp() + ext;
-
+//		System.out.println(fileName + "\t" + rawFileName);
 		// Kiểm tra folder đã tồn tại hay chưa, nếu chưa thì tạo mới
 		File folderExtract = new File(
 				sourceConfigDao.getPathFolder(SOURCE_ID) + File.separator + CurrentTimeStamp.getCurrentDate());
@@ -173,15 +173,15 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 
 		// 2.3 Thành công
 		// 2.3.1 Upload file lên FTP server
-		String disFolderFTP = sourceConfigDao.getDistFolder(SOURCE_ID);
+		String disFolder = sourceConfigDao.getDistFolder(SOURCE_ID);
+		ftpManager.getClient().makeDirectory(disFolder);
 
-		boolean success = ftpManager.pushFile(path, disFolderFTP, fileName)
-				& ftpManager.pushFile(rawPath, disFolderFTP, rawFileName);
+		boolean success = ftpManager.pushFile(path, disFolder, fileName)
+				& ftpManager.pushFile(rawPath, disFolder, rawFileName);
 		if (success) {
 			// 2.3.2 Cập nhật log với trạng thái 'EO'
 			procedure = Procedure.FINISH_EXTRACT;
-			System.out.println("Extract dữ liệu thành công vào folder trên FTP: " + disFolderFTP);
-			ftpManager.listFolder(ftpManager.getClient(), disFolderFTP);
+			System.out.println("Extract dữ liệu thành công vào folder trên FTP: " + disFolder);
 			// 2.4 Không thành công
 		} else {
 			// Cập nhật log với trạng thái 'EF'
