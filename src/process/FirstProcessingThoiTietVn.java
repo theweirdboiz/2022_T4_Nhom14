@@ -113,8 +113,6 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			Document docItem = Jsoup.connect(dataURL).get();
 			// province
 			String provinceName = provinces.get(i).attr("title");
-			// current_time
-			String currentTimeText = docItem.select("#timer").text().replace("| ", "");
 
 			Element currentTemp = docItem.select(".current-temperature").first();
 			// current_temperature
@@ -182,6 +180,7 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			// 2.3.2 Cập nhật log với trạng thái 'EO'
 			procedure = Procedure.FINISH_EXTRACT;
 			System.out.println("Extract dữ liệu thành công vào folder trên FTP: " + disFolder);
+			ftpManager.listFolder(ftpManager.getClient(), disFolder);
 			// 2.4 Không thành công
 		} else {
 			// Cập nhật log với trạng thái 'EF'

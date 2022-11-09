@@ -1,0 +1,7 @@
+/weather_extract
+/lib
+.metadata
+.idea
+.project
+.classpath
+.date_dim.csv

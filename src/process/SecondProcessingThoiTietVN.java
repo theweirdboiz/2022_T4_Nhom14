@@ -9,9 +9,13 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.StringTokenizer;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -19,6 +23,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import dao.CreateDateDim;
+import dao.CreateTimeDim;
 import dao.CurrentTimeStamp;
 import dao.Procedure;
 import dao.control.DbConfigDao;
@@ -41,19 +46,111 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 	private final static int SOURCE_DIM_ID = 3;
 	private final static String EXTENSION = ".csv";
 
-//2. Loading to Staging
+//2. Transform
 	public SecondProcessingThoiTietVN() {
 		// 2.1 Connect FTPConfig -> Lấy thông tin FTP Server -> Connect FTP Server
 		ftpManager = new FTPManager();
-		connection = DbControlConnection.getIntance().getConnect();
 		dbConfigDao = new DbConfigDao();
 		dbHosting = dbConfigDao.getStaggingHosting();
+		connection = new MySQLConnection(dbHosting).getConnect();
 		sourceConfigDao = new SourceConfigDao();
 	}
 
-	public void loadDateDim() {
-		connection = new MySQLConnection(dbHosting).getConnect();
+	public void loadWeatherData() {
+		connection = DbControlConnection.getIntance().getConnect();
+		String result;
+		boolean check = false;
+		// connect staging
+		// download file data csv
+		// read by line
+		// insert into raw_data
+		// 2.2 Lấy source id có trạng thái 'EO' và ngày ghi log = ngày hôm nay
+		try {
+			procedure = Procedure.CHECK_FILE_CURRENT_IN_FTP_SERVER;
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, SOURCE_ID);
+			rs = callStmt.executeQuery();
+			if (rs.next()) {
+				result = rs.getString("timeLoad");
+				String folderName = result.split(" ")[0].trim();
+				String ext = ".csv";
+				String fileName = folderName + "_" + result.split(" ")[1].split(":")[0].trim() + ext;
+				try {
+					connection = new MySQLConnection(dbHosting).getConnect();
+					String path = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + folderName + "/" + fileName;
+					BufferedReader br = ftpManager.getReaderFileInFTPServer(path);
+					String line;
+					LOOP: while ((line = br.readLine()) != null) {
+						StringTokenizer stk = new StringTokenizer(line, ",");
+						int id = Integer.parseInt(stk.nextToken().trim());
+						String name = stk.nextToken().trim();
+						int currentTemp = Integer.parseInt(stk.nextToken().trim());
+						String overview = stk.nextToken().trim();
+						int minTemp = Integer.parseInt(stk.nextToken().trim());
+						int maxTemp = Integer.parseInt(stk.nextToken().trim());
 
+						float humidity = Float.parseFloat(stk.nextToken().trim());
+						float vision = Float.parseFloat(stk.nextToken().trim());
+						float wind = Float.parseFloat(stk.nextToken().trim());
+						int stopPoint = Integer.parseInt(stk.nextToken().trim());
+						float uvIndex = Float.parseFloat(stk.nextToken().trim());
+						String airQuality = stk.nextToken().trim();
+
+//					load to staging
+						procedure = Procedure.LOAD_WEATHER_DATA;
+						callStmt = connection.prepareCall(procedure);
+						callStmt.setInt(1, id);
+						callStmt.setString(2, name);
+						callStmt.setInt(3, currentTemp);
+						callStmt.setString(4, overview);
+						callStmt.setInt(5, minTemp);
+						callStmt.setInt(6, maxTemp);
+						callStmt.setFloat(7, humidity);
+						callStmt.setFloat(8, vision);
+						callStmt.setFloat(9, wind);
+						callStmt.setInt(10, stopPoint);
+						callStmt.setFloat(11, uvIndex);
+						callStmt.setString(12, airQuality);
+						int count = callStmt.executeUpdate();
+						if (count > 0) {
+							check = true;
+						}
+					}
+					if (check) {
+						connection = DbControlConnection.getIntance().getConnect();
+						procedure = Procedure.FINISH_LOAD_WEATHER_DATA_INTO_STAGING;
+						callStmt = connection.prepareCall(procedure);
+						callStmt.setInt(1, SOURCE_ID);
+						callStmt.setString(2, result);
+						rs = callStmt.executeQuery();
+						System.out.println("Load raw weather data into staging successful!");
+					} else {
+						System.out.println("Check again this line!");
+					}
+					br.close();
+				} catch (IOException e) {
+					System.out.println("Check loading into staging");
+					e.printStackTrace();
+				}
+			} else {
+				System.out.println("Không có file mới nào trên FTP server");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void loadTimeDim() {
+		try {
+			CreateTimeDim.create();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public void loadDateDim() {
 		if (CreateDateDim.create()) {
 			try {
 				BufferedReader lineReader = new BufferedReader(new FileReader(CreateDateDim.file));
@@ -122,8 +219,6 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 
 	private void loadProvinceDim() {
 		String sourceUrl = sourceConfigDao.getURL(SOURCE_DIM_ID);
-		connection = new MySQLConnection(dbHosting).getConnect();
-
 		try {
 			Document doc = Jsoup.connect(sourceUrl).get();
 			Elements provinces = doc.select("table tr:not(:first-child) td:nth-of-type(2) p");
@@ -192,36 +287,12 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 	public void runScript() throws SQLException {
 		this.loadDateDim();
 		this.loadProvinceDim();
-		// 2.2 Lấy source id có trạng thái 'EO' và ngày ghi log = ngày hôm nay
-		procedure = Procedure.CHECK_FILE_CURRENT_IN_FTP_SERVER;
-		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-		LocalDateTime now = LocalDateTime.now();
-		String ext = "_data.csv";
-		try {
-			callStmt = connection.prepareCall(procedure);
-			rs = callStmt.executeQuery();
-			rs.next();
-			int currentFileId = rs.getInt(1);
-//			2.3 downloadFile -> Lấy thông tin từ dbConfig table -> Connect db Staging
-//			connection = .getIntance().getConnect();
-			try {
-				BufferedReader br = ftpManager.getReaderFileInFTPServer(now + ext);
-				String line;
-				while ((line = br.readLine()) != null) {
-					// LOAD BY LINE
-				}
-			} catch (IOException e) {
-				connection.rollback();
-				e.printStackTrace();
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+
 	}
 
 	public static void main(String[] args) throws SQLException, IOException {
 		SecondProcessingThoiTietVN sp = new SecondProcessingThoiTietVN();
-		sp.loadData();
-
+//		sp.loadTimeDim();
+		sp.loadWeatherData();
 	}
 }

@@ -82,7 +82,7 @@ public class FTPManager {
 //		System.out.println(("weather_extract/2022-11-07/2022-11-07_00.csv"));
 //		ftpClient.removeDirectory("weather_extract/2022-11-06");
 //		ftpClient.deleteFile("weather_extract/2022-11-07/2022-11-07_00.csv");
-//		ftpManager.listFolder(ftpClient, "weather_extract");
+		ftpManager.listFolder(ftpClient, "weather_extract/2022-11-07");
 //		System.out.println(ftpManager.checkDirectoryExists("weather_extract/2022-11-07"));
 	}
 
