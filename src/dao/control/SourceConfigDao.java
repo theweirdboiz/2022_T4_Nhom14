@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import dao.Procedure;
 import dao.Query;
 import db.DbControlConnection;
 import db.MySQLConnection;
@@ -18,51 +19,74 @@ public class SourceConfigDao {
 
 	public SourceConfigDao() {
 		connection = DbControlConnection.getIntance().getConnect();
+
 	}
 
-	public String getFileName() throws SQLException {
-		String fileName = "";
-		query = "SELECT fileName FROM SOURCECONFIG WHERE ID =1";
+	public int getId() throws SQLException {
+		int id = 1;
+		query = "SELECT ID FROM SOURCECONFIG WHERE ID =1";
 		ps = connection.prepareStatement(query);
 		rs = ps.executeQuery();
 		while (rs.next()) {
-			fileName = rs.getString("fileName");
+			id = rs.getInt("ID");
 		}
-		return fileName;
+		return id;
 	}
 
-	public String getUrl() throws SQLException {
-		String url = "";
-		query = "SELECT url FROM SOURCECONFIG WHERE ID =1";
-		ps = connection.prepareStatement(query);
-		rs = ps.executeQuery();
-		while (rs.next()) {
-			url = rs.getString("url");
+	public String getPathFolder(int id) {
+		try {
+			query = Query.GET_PATH_FOLDER_SOURCE;
+			ps = connection.prepareStatement(query);
+			ps.setInt(1, id);
+			rs = ps.executeQuery();
+			return rs.next() ? rs.getString("pathFolder") : null;
+		} catch (SQLException e) {
+			return null;
 		}
-		return url;
 	}
-	
-	public String getURL(String id) {
+
+	public String getDistFolder(int id) {
+		try {
+			query = Query.GET_DIST_FOLDER_SOURCE;
+			ps = connection.prepareStatement(query);
+			ps.setInt(1, id);
+			rs = ps.executeQuery();
+			return rs.next() ? rs.getString("distFolder") : null;
+		} catch (SQLException e) {
+			return null;
+		}
+	}
+
+	public String getTimeLoad(int id) {
+		try {
+			query = Procedure.GET_TIMELOAD;
+			ps = connection.prepareStatement(query);
+			ps.setInt(1, id);
+			rs = ps.executeQuery();
+			return rs.next() ? rs.getString("timeLoad") : null;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	public String getURL(int id) {
 		try {
 			query = Query.GET_URL_SOURCE;
 			ps = connection.prepareStatement(query);
-			ps.setString(1, id);
+			ps.setInt(1, id);
 			rs = ps.executeQuery();
 			return rs.next() ? rs.getString("url") : null;
 		} catch (SQLException e) {
 			return null;
 		}
 	}
-	
-	public String getFileName(String id) {
+
+	public void close() {
 		try {
-			query = Query.GET_FILENAME_SOURCE;
-			ps = connection.prepareStatement(query);
-			ps.setString(1, id);
-			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("fileName") : null;
+			connection.close();
 		} catch (SQLException e) {
-			return null;
+			e.printStackTrace();
 		}
 	}
 	
@@ -92,6 +116,8 @@ public class SourceConfigDao {
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
-		System.out.println(sourceConfigDao.getURL("1"));
+		System.out.println(sourceConfigDao.getTimeLoad(1));
+//		System.out.println(sourceConfigDao.getURL("1"));
+//		System.out.println(sourceConfigDao.getFileName());
 	}
 }
