@@ -31,9 +31,8 @@ public class FTPConfigDao {
 			statement = connection.prepareStatement(query);
 			statement.setInt(1, 1);
 			ResultSet result = statement.executeQuery();
-			return result.next()
-					? new FTPHosting(result.getString("host"), result.getInt("port"), result.getString("username"),
-							result.getString("password"))
+			return result.next() 
+					? new FTPHosting(result.getString("host"), result.getInt("port"), result.getString("username"), result.getString("password"))
 					: null;
 		} catch (SQLException e) {
 			e.printStackTrace();

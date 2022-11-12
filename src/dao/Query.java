@@ -9,7 +9,6 @@ public interface Query {
 
 	String GET_PATH_FOLDER_SOURCE = "select pathFolder from sourceconfig where id = ?";
 	String GET_DIST_FOLDER_SOURCE = "select distFolder from sourceconfig where id = ?";
-	
 
 	String INSERT_LOG_DEFAULT = "insert into log values (?,?,?,?)";
 	String SET_STATUS_WITH_ID_IN_LOG = "update log set status = ? where id = ?";
