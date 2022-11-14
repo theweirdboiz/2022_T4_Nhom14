@@ -16,20 +16,18 @@ public interface CreateTimeDim {
 	public static final String TIME_ZONE = "PST8PDT";
 	public File file = new File(OUT_FILE);
 
-	public static void create() throws FileNotFoundException {
+	public static boolean create() throws FileNotFoundException {
 //		int minute = -1;
 //		int hour = 0;
 //		int second = -1;
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file)));
-
+		int count = 1;
 		for (int i = 0; i < 24; i++) {
 			for (int j = 0; j < 60; j++) {
-				writer.println(i + ", " + j + "\n");
-//				for (int k = 0; k < 60; k++) {
-////					writer.println(i + ", " + j + ", " + k + "\n");
-//				}
+				writer.println(count++ + "," + (i + ":" + j));
 			}
 		}
 		writer.flush();
+		return file.length() > 0;
 	}
 }

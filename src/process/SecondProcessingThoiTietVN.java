@@ -140,17 +140,65 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 		}
 	}
 
-	public void loadTimeDim() {
-		try {
-			CreateTimeDim.create();
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	public void loadTimeDim() throws IOException {
+		boolean checkLoad = false;
+		if (CreateTimeDim.create()) {
+			try {
+				BufferedReader lineReader = new BufferedReader(new FileReader(CreateTimeDim.file));
+				String lineText = null;
+				// insert new data
+				try {
 
+					while ((lineText = lineReader.readLine()) != null) {
+						StringTokenizer stk = new StringTokenizer(lineText, ",");
+//						String data[] = lineText.split(",");
+						try {
+							procedure = Procedure.LOAD_TIME_DIM;
+							callStmt = connection.prepareCall(procedure);
+							callStmt.setInt(1, Integer.parseInt(stk.nextToken()));
+							callStmt.setString(2, stk.nextToken());
+							int result = callStmt.executeUpdate();
+							if (result > 0) {
+								checkLoad = true;
+							}
+						} catch (SQLException e) {
+							e.printStackTrace();
+						}
+					}
+				} catch (NumberFormatException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				try {
+					lineReader.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} catch (FileNotFoundException e) {
+				try {
+					connection.rollback();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				e.printStackTrace();
+			}
+			if (checkLoad) {
+				System.out.println("Thêm dữ liệu timedim thành công!");
+			} else {
+				System.out.println("Thêm dữ liệu timedim thất bại!");
+			}
+		} else {
+			System.out.println("Chưa tạo được file time_dim.csv");
+		}
 	}
 
 	public void loadDateDim() {
+		boolean checkLoad = false;
 		if (CreateDateDim.create()) {
 			try {
 				BufferedReader lineReader = new BufferedReader(new FileReader(CreateDateDim.file));
@@ -174,8 +222,6 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 						int month = Integer.parseInt(data[3].trim());
 						int day = Integer.parseInt(data[4].trim());
 						String dayOfWeek = data[5].trim();
-
-						System.out.println(id + " " + date + " " + year + " " + month + " " + day + " " + dayOfWeek);
 						try {
 							procedure = Procedure.LOAD_DATE_DIM;
 							callStmt = connection.prepareCall(procedure);
@@ -185,7 +231,10 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 							callStmt.setInt(4, month);
 							callStmt.setInt(5, day);
 							callStmt.setString(6, dayOfWeek);
-							callStmt.execute();
+							int result = callStmt.executeUpdate();
+							if (result > 0) {
+								checkLoad = true;
+							}
 						} catch (SQLException e) {
 							e.printStackTrace();
 						}
@@ -213,6 +262,15 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 				}
 				e.printStackTrace();
 			}
+			if (checkLoad) {
+				System.out.println("Thêm dữ liệu datedim thành công!");
+			} else {
+				System.out.println("Thêm dữ liệu datedim thất bại!");
+
+			}
+
+		} else {
+			System.out.println("Chưa tạo được file date_dim.csv!");
 		}
 
 	}
@@ -242,57 +300,15 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 
 	}
 
-	public boolean loadData() {
-		// Vào log, kiểm tra có file mới được upload lên FTP server hay không bằng cách
-		// check status = EO?
-		try {
-			procedure = Procedure.IS_EXISTED;
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, SOURCE_ID);
-			rs = callStmt.executeQuery();
-			boolean isExisted = false;
-			if (rs.next()) {
-				isExisted = rs.getInt(1) > 0 ? true : false;
-			}
-			// Nếu có
-			// Lấy một dòng dữ liệu, lấy timeLoad từ dòng đó -> tìm đến folder trên FTP theo
-			// timeLoad
-			String dateLoad = sourceConfigDao.getTimeLoad(SOURCE_ID).split(" ")[0];
-			String hourLoad = sourceConfigDao.getTimeLoad(SOURCE_ID).split(" ")[1].split(":")[0];
-			String path = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + dateLoad + "/"
-					+ CurrentTimeStamp.getCurrentDate(dateLoad, hourLoad + EXTENSION);
-			System.out.println(path);
-			try {
-				System.out.println(path);
-				BufferedReader br = ftpManager.getReaderFileInFTPServer(path);
-				String line;
-				while ((line = br.readLine()) != null) {
-					System.out.println(line);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-
-		// download file
-
-		// insert by row into statging
-
-//		Nếu không -> Kết thúc
-		return false;
-	}
-
 	public void runScript() throws SQLException {
 		this.loadDateDim();
 		this.loadProvinceDim();
-
 	}
 
 	public static void main(String[] args) throws SQLException, IOException {
 		SecondProcessingThoiTietVN sp = new SecondProcessingThoiTietVN();
-//		sp.loadTimeDim();
-		sp.loadWeatherData();
+		sp.loadTimeDim();
+		sp.loadDateDim();
+//		sp.loadWeatherData();
 	}
 }

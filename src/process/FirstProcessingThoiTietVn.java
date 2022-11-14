@@ -10,6 +10,9 @@ import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 import org.apache.commons.net.ftp.FTPClient;
 import org.jsoup.Jsoup;
@@ -17,6 +20,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import dao.CreateDateDim;
 import dao.CurrentTimeStamp;
 import dao.IdCreater;
 import dao.Procedure;
@@ -113,6 +117,10 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			Document docItem = Jsoup.connect(dataURL).get();
 			// province
 			String provinceName = provinces.get(i).attr("title");
+			String currentDate = folderExtract.getName();
+			// current_time
+			SimpleDateFormat dt = new SimpleDateFormat("HH:mm");
+			String currentTime = dt.format(CurrentTimeStamp.timestamp);
 
 			Element currentTemp = docItem.select(".current-temperature").first();
 			// current_temperature
@@ -137,10 +145,10 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			// air_quality
 			String airQualityText = docItem.select(".air-api.air-active").text();
 
-			rawWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
-					+ overViewText + separator + lowestTempText + separator + maximumText + separator + maximumText
-					+ separator + visionText + separator + windText + separator + stopPointText + separator
-					+ uvIndexText + separator + airQualityText + "\n");
+			rawWriter.write(id + separator + provinceName + separator + currentDate + separator + currentTime
+					+ separator + currentTemperatureText + separator + overViewText + separator + lowestTempText
+					+ separator + maximumText + separator + maximumText + separator + visionText + separator + windText
+					+ separator + stopPointText + separator + uvIndexText + separator + airQualityText + "\n");
 
 			// pretreatment
 			int currentTemperatureNum = Integer
@@ -154,10 +162,10 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			int stopPointNum = Integer.parseInt(stopPointText.split(" ")[0]);
 			Float uvIndexFloat = Float.parseFloat(uvIndexText);
 
-			writer.write(id + separator + provinceName + separator + currentTemperatureNum + separator + overViewText
-					+ separator + lowestTemperatureNum + separator + maximumTemperatureNum + separator + humidityFloat
-					+ separator + visionNum + separator + windFloat + separator + stopPointNum + separator
-					+ uvIndexFloat + separator + airQualityText + "\n");
+			writer.write(id + separator + provinceName + separator + currentDate + separator + currentTime + separator
+					+ currentTemperatureNum + separator + overViewText + separator + lowestTemperatureNum + separator
+					+ maximumTemperatureNum + separator + humidityFloat + separator + visionNum + separator + windFloat
+					+ separator + stopPointNum + separator + uvIndexFloat + separator + airQualityText + "\n");
 
 		}
 		rawWriter.flush();
