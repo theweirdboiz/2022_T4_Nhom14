@@ -40,6 +40,11 @@ public class FTPManager {
 		ftpClient.makeDirectory(distFolder);
 		return ftpClient.storeFile(distFolder + "/" + fileName, bis);
 
+	
+	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
+		FileInputStream fis = new FileInputStream(new File(path));
+		ftpClient.makeDirectory(distFolder);
+		return ftpClient.storeFile(distFolder + "/" + fileName, fis);
 	}
 
 	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
@@ -50,6 +55,7 @@ public class FTPManager {
 		return this.ftpClient;
 	}
 
+	
 	public void close() {
 		try {
 			ftpClient.disconnect();
@@ -86,4 +92,7 @@ public class FTPManager {
 //		System.out.println(ftpManager.checkDirectoryExists("weather_extract/2022-11-07"));
 	}
 
+			e.printStackTrace();
+		}
+	}
 }
