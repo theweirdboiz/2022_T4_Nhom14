@@ -14,7 +14,7 @@ public class MySQLConnection implements IConnection {
 
 	public MySQLConnection(String url, String username, String password) {
 		try {
-			System.out.println("Connecting...");
+			System.out.println("Connecting database control...");
 			Class.forName(DATABASE_DRIVER);
 			connection = DriverManager.getConnection(url, username, password);
 			System.out.println("Connected!");
@@ -25,7 +25,7 @@ public class MySQLConnection implements IConnection {
 
 	public MySQLConnection(DbHosting dbHosting) {
 		try {
-			System.out.println("Connecting...");
+			System.out.println("Connecting database " + dbHosting.getUrl().split("/")[0]);
 			Class.forName(DATABASE_DRIVER);
 			connection = DriverManager.getConnection(dbHosting.getUrl(), dbHosting.getUserName(),
 					dbHosting.getPassword());
