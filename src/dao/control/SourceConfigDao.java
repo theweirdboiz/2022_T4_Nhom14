@@ -6,7 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import dao.Procedure;
-import dao.Query;
+import dao.SOURCE_ID;
 import db.DbControlConnection;
 import db.MySQLConnection;
 
@@ -22,61 +22,13 @@ public class SourceConfigDao {
 
 	}
 
-	public int getId() throws SQLException {
-		int id = 1;
-		query = "SELECT ID FROM SOURCECONFIG WHERE ID =1";
-		ps = connection.prepareStatement(query);
-		rs = ps.executeQuery();
-		while (rs.next()) {
-			id = rs.getInt("ID");
-		}
-		return id;
-	}
-
-	public String getPathFolder(int id) {
+	public String getURL() {
 		try {
-			query = Query.GET_PATH_FOLDER_SOURCE;
-			ps = connection.prepareStatement(query);
-			ps.setInt(1, id);
+			query = Procedure.GET_URL_SOURCE;
+			ps = connection.prepareCall(query);
+			ps.setInt(1, SOURCE_ID.getId());
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("pathFolder") : null;
-		} catch (SQLException e) {
-			return null;
-		}
-	}
-
-	public String getDistFolder(int id) {
-		try {
-			query = Query.GET_DIST_FOLDER_SOURCE;
-			ps = connection.prepareStatement(query);
-			ps.setInt(1, id);
-			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("distFolder") : null;
-		} catch (SQLException e) {
-			return null;
-		}
-	}
-
-	public String getTimeLoad(int id) {
-		try {
-			query = Procedure.GET_TIMELOAD;
-			ps = connection.prepareStatement(query);
-			ps.setInt(1, id);
-			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("timeLoad") : null;
-		} catch (SQLException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-
-	public String getURL(int id) {
-		try {
-			query = Query.GET_URL_SOURCE;
-			ps = connection.prepareStatement(query);
-			ps.setInt(1, id);
-			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("url") : null;
+			return rs.next() ? rs.getString("url").trim() : null;
 		} catch (SQLException e) {
 			return null;
 		}
@@ -89,26 +41,26 @@ public class SourceConfigDao {
 			e.printStackTrace();
 		}
 	}
-	
-	public String getPathFolder(String id) {
+
+	public String getPathFolder() {
 		try {
-			query = Query.GET_PATH_FOLDER_SOURCE;
-			ps = connection.prepareStatement(query);
-			ps.setString(1, id);
+			query = Procedure.GET_PATH_FOLDER;
+			ps = connection.prepareCall(query);
+			ps.setInt(1, SOURCE_ID.getId());
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("pathFolder") : null;
+			return rs.next() ? rs.getString("pathFolder").trim() : null;
 		} catch (SQLException e) {
 			return null;
 		}
 	}
-	
-	public String getDistFolder(String id) {
+
+	public String getDistFolder() {
 		try {
-			query = Query.GET_DIST_FOLDER_SOURCE;
-			ps = connection.prepareStatement(query);
-			ps.setString(1, id);
+			query = Procedure.GET_DIST_FOLDER;
+			ps = connection.prepareCall(query);
+			ps.setInt(1, SOURCE_ID.getId());
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("distFolder") : null;
+			return rs.next() ? rs.getString("distFolder").trim() : null;
 		} catch (SQLException e) {
 			return null;
 		}
@@ -116,8 +68,8 @@ public class SourceConfigDao {
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
-		System.out.println(sourceConfigDao.getTimeLoad(1));
-//		System.out.println(sourceConfigDao.getURL("1"));
+		System.out.println(sourceConfigDao.getDistFolder());
+//		System.out.println(sourceConfigDao.getURL());
 //		System.out.println(sourceConfigDao.getFileName());
 	}
 }

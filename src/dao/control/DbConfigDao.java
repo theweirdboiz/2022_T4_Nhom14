@@ -5,7 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import dao.Query;
+import dao.Procedure;
 import db.DbControlConnection;
 import model.DbHosting;
 
@@ -19,40 +19,46 @@ public class DbConfigDao {
 		connection = DbControlConnection.getIntance().getConnect();
 	}
 
-	public DbHosting getStaggingHosting() {
+	public DbHosting getStagingHosting() {
+		DbHosting dbHosting = null;
 		try {
-			query = Query.GET_DB_HOSTING;
-			statement = connection.prepareStatement(query);
+			query = Procedure.GET_DB_HOSTING;
+			statement = connection.prepareCall(query);
 			statement.setString(1, "staging");
-			statement.setInt(2, 1);
 			ResultSet result = statement.executeQuery();
-			return result.next()
-					? new DbHosting(result.getString("host"), result.getString("username"),
-							result.getString("password"))
-					: null;
+			if (result.next()) {
+				dbHosting = new DbHosting(
+						result.getString("driver") + "://" + result.getString("location") + "/"
+								+ result.getString("dbName"),
+						result.getString("username"), result.getString("password"), result.getString("dbName"));
+			}
 		} catch (SQLException e) {
-			return null;
+			e.printStackTrace();
 		}
+		return dbHosting;
 	}
 
 	public DbHosting getDatawareHouseHosting() {
+		DbHosting dbHosting = null;
 		try {
-			query = Query.GET_DB_HOSTING;
-			statement = connection.prepareStatement(query);
-			statement.setString(1, "datawarehouse");
-			statement.setInt(2, 1);
+			query = Procedure.GET_DB_HOSTING;
+			statement = connection.prepareCall(query);
+			statement.setString(1, "warehouse");
 			ResultSet result = statement.executeQuery();
-			return result.next()
-					? new DbHosting(result.getString("host"), result.getString("username"),
-							result.getString("password"))
-					: null;
+			if (result.next()) {
+				dbHosting = new DbHosting(
+						result.getString("driver") + "://" + result.getString("location") + "/"
+								+ result.getString("dbName"),
+						result.getString("username"), result.getString("password"), result.getString("dbName"));
+			}
 		} catch (SQLException e) {
-			return null;
+			e.printStackTrace();
 		}
+		return dbHosting;
 	}
 
 	public static void main(String[] args) {
 		DbConfigDao configDao = new DbConfigDao();
-//		System.out.println(configDao.getStaggingHosting());
+		System.out.println(configDao.getDatawareHouseHosting());
 	}
 }

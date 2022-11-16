@@ -27,6 +27,6 @@ public interface CurrentTimeStamp {
 	}
 
 	public static void main(String[] args) {
-
+		System.out.println(CurrentTimeStamp.getCurrentDate());
 	}
 }

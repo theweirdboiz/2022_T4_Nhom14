@@ -1,6 +1,12 @@
 package model;
 
 public class FTPHosting {
+	@Override
+	public String toString() {
+		return "FTPHosting [host=" + host + ", port=" + port + ", username=" + username + ", password=" + password
+				+ "]";
+	}
+
 	private String host;
 	private int port;
 	private String username;

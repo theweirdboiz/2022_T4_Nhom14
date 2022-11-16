@@ -9,7 +9,8 @@ import org.apache.commons.net.ftp.FTPClient;
 
 import com.mysql.cj.protocol.Resultset;
 
-import dao.Query;
+import dao.Procedure;
+import dao.SOURCE_ID;
 import db.DbControlConnection;
 import db.MySQLConnection;
 import model.DbHosting;
@@ -26,24 +27,27 @@ public class FTPConfigDao {
 	}
 
 	public FTPHosting getFTPHosting() {
+		FTPHosting ftpHosting = null;
 		try {
-			query = Query.GET_FTP_HOSTING;
-			statement = connection.prepareStatement(query);
-			statement.setInt(1, 1);
+			query = Procedure.GET_FTP_HOSTING;
+			statement = connection.prepareCall(query);
+			statement.setInt(1, SOURCE_ID.getId());
 			ResultSet result = statement.executeQuery();
-			return result.next() 
-					? new FTPHosting(result.getString("host"), result.getInt("port"), result.getString("username"), result.getString("password"))
-					: null;
+
+			if (result.next()) {
+				ftpHosting = new FTPHosting(result.getString("host"), result.getInt("port"),
+						result.getString("username"), result.getString("password"));
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		return null;
+		return ftpHosting;
 	}
 
 	public static void main(String[] args) {
 //		FTPHosting ftpHosting = new 
 		FTPConfigDao configDao = new FTPConfigDao();
 //		FTPHosting ftpHosting = configDao.getFTPHosting();
-//		System.out.println(ftpHosting);
+
 	}
 }

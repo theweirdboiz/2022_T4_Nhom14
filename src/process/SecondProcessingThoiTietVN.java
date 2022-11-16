@@ -8,13 +8,6 @@ import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.StringTokenizer;
 
 import org.jsoup.Jsoup;
@@ -24,7 +17,6 @@ import org.jsoup.select.Elements;
 
 import dao.CreateDateDim;
 import dao.CreateTimeDim;
-import dao.CurrentTimeStamp;
 import dao.Procedure;
 import dao.control.DbConfigDao;
 import dao.control.SourceConfigDao;
@@ -51,93 +43,183 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 		// 2.1 Connect FTPConfig -> Lấy thông tin FTP Server -> Connect FTP Server
 		ftpManager = new FTPManager();
 		dbConfigDao = new DbConfigDao();
-		dbHosting = dbConfigDao.getStaggingHosting();
-		connection = new MySQLConnection(dbHosting).getConnect();
+//		connection = new MySQLConnection(dbHosting).getConnect();
 		sourceConfigDao = new SourceConfigDao();
 	}
 
-	public void loadWeatherData() {
+	public boolean loadWeatherData() {
+		boolean result = false;
+		// 1. Connect db control
 		connection = DbControlConnection.getIntance().getConnect();
-		String result;
-		boolean check = false;
-		// connect staging
-		// download file data csv
-		// read by line
-		// insert into raw_data
-		// 2.2 Lấy source id có trạng thái 'EO' và ngày ghi log = ngày hôm nay
+		// 2.4 Lấy id có trạng thái 'EO' và ngày ghi log = ngày hôm nay cập nhật sang
+		// stt 'EL'
+		// 1.1 Lấy một dòng dữ liệu có timeLoad = current_hour and dateLoad =
+		// current_date and status ='EO'
 		try {
-			procedure = Procedure.CHECK_FILE_CURRENT_IN_FTP_SERVER;
+			procedure = Procedure.GET_ONE_FILE_IN_FTP;
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, SOURCE_ID);
 			rs = callStmt.executeQuery();
-			if (rs.next()) {
-				result = rs.getString("timeLoad");
-				String folderName = result.split(" ")[0].trim();
-				String ext = ".csv";
-				String fileName = folderName + "_" + result.split(" ")[1].split(":")[0].trim() + ext;
-				try {
-					connection = new MySQLConnection(dbHosting).getConnect();
-					String path = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + folderName + "/" + fileName;
-					BufferedReader br = ftpManager.getReaderFileInFTPServer(path);
-					String line;
-					LOOP: while ((line = br.readLine()) != null) {
-						StringTokenizer stk = new StringTokenizer(line, ",");
-						int id = Integer.parseInt(stk.nextToken().trim());
-						String name = stk.nextToken().trim();
-						int currentTemp = Integer.parseInt(stk.nextToken().trim());
-						String overview = stk.nextToken().trim();
-						int minTemp = Integer.parseInt(stk.nextToken().trim());
-						int maxTemp = Integer.parseInt(stk.nextToken().trim());
+			// 1.1.1 Nếu không có file nào mới -> kết thúc
+			if (!rs.next()) {
+				System.out.println("Ko co file nao moi");
+				return result;
+			}
+			// 1.1.2 Nếu có -> lấy thông tin từ dòng dữ liệu này: logId, status, sourceId,
+			// timeLoad,dateLoad
+			int logId = rs.getInt("id");
+			String dateLoad = rs.getString("dateLoad");
+			String timeLoad = rs.getString("timeLoad");
+			String mySeperator = "_";
+			String fileSeperator = "/";
+			String folderName = dateLoad;
+			String fileName = folderName + mySeperator + timeLoad + EXTENSION;
 
-						float humidity = Float.parseFloat(stk.nextToken().trim());
-						float vision = Float.parseFloat(stk.nextToken().trim());
-						float wind = Float.parseFloat(stk.nextToken().trim());
-						int stopPoint = Integer.parseInt(stk.nextToken().trim());
-						float uvIndex = Float.parseFloat(stk.nextToken().trim());
-						String airQuality = stk.nextToken().trim();
+			// 1.1.3 -> vào ftp server và lấy file này xuống
+			String path = sourceConfigDao.getDistFolder() + fileSeperator + folderName + fileSeperator + fileName;
+			System.out.println(path);
+			try {
+				// 1.1.4 get info db statging
+				dbHosting = dbConfigDao.getStagingHosting();
+				connection = new MySQLConnection(dbHosting).getConnect();
+				// 1.1.5 Mở file
+				BufferedReader br = ftpManager.getReaderFileInFTPServer(path);
+				String rowData;
+				// 1.1.6 Read by line
+				LOOP: while ((rowData = br.readLine()) != null) {
+					StringTokenizer stk = new StringTokenizer(rowData, ",");
 
-//					load to staging
-						procedure = Procedure.LOAD_WEATHER_DATA;
-						callStmt = connection.prepareCall(procedure);
-						callStmt.setInt(1, id);
-						callStmt.setString(2, name);
-						callStmt.setInt(3, currentTemp);
-						callStmt.setString(4, overview);
-						callStmt.setInt(5, minTemp);
-						callStmt.setInt(6, maxTemp);
-						callStmt.setFloat(7, humidity);
-						callStmt.setFloat(8, vision);
-						callStmt.setFloat(9, wind);
-						callStmt.setInt(10, stopPoint);
-						callStmt.setFloat(11, uvIndex);
-						callStmt.setString(12, airQuality);
-						int count = callStmt.executeUpdate();
-						if (count > 0) {
-							check = true;
-						}
+					String provinceName = null;
+					String dateLoadData = null;
+					Integer timeLoadData = null;
+					Integer currentTemp = null;
+					String overview = null;
+					Integer minTemp = null;
+					Integer maxTemp = null;
+					Float humidity = null;
+					Float vision = null;
+					Float wind = null;
+					Integer stopPoint = null;
+					Float uvIndex = null;
+					String airQuality = null;
+					int id = Integer.parseInt(stk.nextToken().trim());
+					try {
+						provinceName = stk.nextToken().trim();
+					} catch (NumberFormatException e) {
+						provinceName = null;
+						continue LOOP;
 					}
-					if (check) {
-						connection = DbControlConnection.getIntance().getConnect();
-						procedure = Procedure.FINISH_LOAD_WEATHER_DATA_INTO_STAGING;
-						callStmt = connection.prepareCall(procedure);
-						callStmt.setInt(1, SOURCE_ID);
-						callStmt.setString(2, result);
-						rs = callStmt.executeQuery();
-						System.out.println("Load raw weather data into staging successful!");
-					} else {
-						System.out.println("Check again this line!");
+					try {
+						dateLoadData = stk.nextToken().trim();
+					} catch (NumberFormatException e) {
+						dateLoadData = null;
+						continue LOOP;
 					}
-					br.close();
-				} catch (IOException e) {
-					System.out.println("Check loading into staging");
-					e.printStackTrace();
+					try {
+						timeLoadData = Integer.parseInt(stk.nextToken().trim().split(":")[0]);
+					} catch (NumberFormatException e) {
+						timeLoadData = null;
+						continue LOOP;
+					}
+					try {
+						currentTemp = Integer.parseInt(stk.nextToken().trim());
+					} catch (NumberFormatException e) {
+						currentTemp = null;
+						continue LOOP;
+					}
+					try {
+						overview = stk.nextToken().trim();
+
+					} catch (NumberFormatException e) {
+						overview = null;
+						continue LOOP;
+					}
+					try {
+						minTemp = Integer.parseInt(stk.nextToken().trim());
+
+					} catch (NumberFormatException e) {
+						minTemp = null;
+						continue LOOP;
+					}
+					try {
+						maxTemp = Integer.parseInt(stk.nextToken().trim());
+
+					} catch (NumberFormatException e) {
+						maxTemp = null;
+						continue LOOP;
+					}
+					try {
+						humidity = Float.parseFloat(stk.nextToken().trim());
+					} catch (NumberFormatException e) {
+						humidity = null;
+						continue LOOP;
+					}
+					try {
+						vision = Float.parseFloat(stk.nextToken().trim());
+					} catch (NumberFormatException e) {
+						vision = null;
+						continue LOOP;
+					}
+					try {
+						wind = Float.parseFloat(stk.nextToken().trim());
+
+					} catch (NumberFormatException e) {
+						wind = null;
+						continue LOOP;
+					}
+					try {
+						stopPoint = Integer.parseInt(stk.nextToken().trim());
+
+					} catch (NumberFormatException e) {
+						stopPoint = null;
+						continue LOOP;
+					}
+					try {
+						uvIndex = Float.parseFloat(stk.nextToken().trim());
+					} catch (NumberFormatException e) {
+						uvIndex = null;
+						continue LOOP;
+					}
+					try {
+						airQuality = stk.nextToken().trim();
+					} catch (NumberFormatException e) {
+						airQuality = null;
+						continue LOOP;
+					}
+
+					// 1.1.7 Load into staging.raw_weather_data by line
+					procedure = Procedure.LOAD_WEATHER_DATA;
+					callStmt = connection.prepareCall(procedure);
+					callStmt.setInt(1, id);
+					callStmt.setString(2, provinceName);
+					callStmt.setString(3, dateLoad);
+					callStmt.setInt(4, timeLoadData);
+					callStmt.setInt(5, currentTemp);
+					callStmt.setString(6, overview);
+					callStmt.setInt(7, minTemp);
+					callStmt.setInt(8, maxTemp);
+					callStmt.setFloat(9, humidity);
+					callStmt.setFloat(10, vision);
+					callStmt.setFloat(11, wind);
+					callStmt.setInt(12, stopPoint);
+					callStmt.setFloat(13, uvIndex);
+					callStmt.setString(14, airQuality);
+					result = callStmt.executeUpdate() > 0;
 				}
-			} else {
-				System.out.println("Không có file mới nào trên FTP server");
+				// Kiểm tra kết quả quá trình load
+				if (result) {
+					System.out.println("Load data into staging.raw_weather_data thành công!");
+				} else {
+					System.out.println("Load data into staging.raw_weather_data không thành công, thử lại nhé!");
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.out.println("Chắc là đường dẫn này không tồn tại!");
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+		return result;
 	}
 
 	public void loadTimeDim() throws IOException {
@@ -276,7 +358,7 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 	}
 
 	private void loadProvinceDim() {
-		String sourceUrl = sourceConfigDao.getURL(SOURCE_DIM_ID);
+		String sourceUrl = sourceConfigDao.getURL();
 		try {
 			Document doc = Jsoup.connect(sourceUrl).get();
 			Elements provinces = doc.select("table tr:not(:first-child) td:nth-of-type(2) p");
@@ -307,8 +389,6 @@ public class SecondProcessingThoiTietVN implements Procedure, CreateDateDim {
 
 	public static void main(String[] args) throws SQLException, IOException {
 		SecondProcessingThoiTietVN sp = new SecondProcessingThoiTietVN();
-		sp.loadTimeDim();
-		sp.loadDateDim();
-//		sp.loadWeatherData();
+		sp.loadWeatherData();
 	}
 }

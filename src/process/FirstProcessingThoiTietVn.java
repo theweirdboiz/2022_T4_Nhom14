@@ -1,7 +1,6 @@
 package process;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -15,24 +14,21 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
-import org.apache.commons.net.ftp.FTPClient;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import dao.CreateDateDim;
 import dao.CurrentTimeStamp;
 import dao.IdCreater;
 import dao.Procedure;
-import dao.Query;
-
+import dao.SOURCE_ID;
 import dao.control.SourceConfigDao;
 import db.DbControlConnection;
 
 import ftp.FTPManager;
 
-public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeStamp {
+public class FirstProcessingThoiTietVn {
 
 	private FTPManager ftpManager;
 	private Connection connection;
@@ -43,7 +39,6 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 
 	private SourceConfigDao sourceConfigDao;
 
-	private static final int SOURCE_ID = 1;
 	private String sourceUrl;
 	private String fileName, rawFileName;
 	private String path, rawPath;
@@ -53,7 +48,7 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		connection = DbControlConnection.getIntance().getConnect();
 		sourceConfigDao = new SourceConfigDao();
 		ftpManager = new FTPManager();
-		sourceUrl = sourceConfigDao.getURL(SOURCE_ID);
+		sourceUrl = sourceConfigDao.getURL();
 	}
 
 	public boolean runScript() throws SQLException, IOException {
@@ -63,20 +58,20 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		String status = "";
 		procedure = Procedure.GET_ONE_ROW_FROM_LOG;
 		callStmt = connection.prepareCall(procedure);
-		callStmt.setInt(1, SOURCE_ID);
+		callStmt.setInt(1, SOURCE_ID.getId());
 		rs = callStmt.executeQuery();
 		boolean checkEmptyLog = rs.next();
-		boolean result = false;
 		if (!checkEmptyLog) {
 			// 1.1.1 Nếu chưa có dòng dữ liệu nào, ghi một log mới
 			logId = IdCreater.createIdByCurrentTime();
-			System.out.println("Ghi log source id: " + SOURCE_ID);
+			System.out.println("Ghi log source id: " + SOURCE_ID.getId());
 			procedure = Procedure.INSERT_RECORD;
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, logId);
-			callStmt.setInt(2, SOURCE_ID);
+			callStmt.setInt(2, SOURCE_ID.getId());
 			callStmt.execute();
-			extract(logId);
+
+			return extract(logId);
 		} else {
 			status = rs.getString("status");
 			logId = rs.getInt("id");
@@ -86,11 +81,10 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		// Nếu EO -> Kết thúc luôn
 		case "EO":
 			System.out.println("Đã có dữ liệu vào thời điểm: " + CurrentTimeStamp.getCurrentTimeStamp());
-			result = true;
-			return result;
+			return true;
 		// Nếu EF -> Cập nhật sang trạng thái ER -> extract
 		// Nếu ER -> extract
-		case "EF", "ER":
+		case "EF":
 			// Cập nhật sang trạng thái ER và thời gian bắt đầu extract là thời gian hiện
 			// tại
 			procedure = Procedure.UPDATE_STATUS;
@@ -102,15 +96,27 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			procedure = Procedure.UPDATE_TIME_LOAD;
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, logId);
+			int hour = new Date().getHours();
+			callStmt.setInt(2, hour);
 			callStmt.execute();
 			// Kết quả extract
-			result = extract(logId);
-			return result;
+			return extract(logId);
+		case "ER":
+			procedure = Procedure.UPDATE_TIME_LOAD;
+			callStmt = connection.prepareCall(procedure);
+			// 91061033
+			System.out.println(logId);
+			callStmt.setInt(1, logId);
+			hour = new Date().getHours();
+			callStmt.setInt(2, hour);
+			callStmt.execute();
+			// Kết quả extract
+			return extract(logId);
 		default:
+			System.out.println("Truong hop nay chua tinh duoc");
 			break;
 		}
-		System.out.println("Kết quả extract: "+result);
-		return result;
+		return false;
 	}
 
 	private boolean extract(int logId) throws SQLException {
@@ -124,7 +130,7 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		rawFileName = "raw" + CurrentTimeStamp.getCurrentTimeStamp() + ext;
 		// 2.1.1 Kiểm tra folder đã tồn tại hay chưa, nếu chưa thì tạo mới
 		File folderExtract = new File(
-				sourceConfigDao.getPathFolder(SOURCE_ID) + File.separator + CurrentTimeStamp.getCurrentDate());
+				sourceConfigDao.getPathFolder() + File.separator + CurrentTimeStamp.getCurrentDate());
 		if (!folderExtract.exists()) {
 			System.out.println("Tạo mới folder chưa file dữ liệu đã extract!");
 			folderExtract.mkdirs();
@@ -211,15 +217,15 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 					+ separator + stopPointText + separator + uvIndexText + separator + airQualityText + "\n");
 
 			// pretreatment
-			int currentTemperatureNum = Integer
+			Integer currentTemperatureNum = Integer
 					.parseInt(currentTemperatureText.substring(0, currentTemperatureText.length() - 1).trim());
-			int lowestTemperatureNum = Integer
+			Integer lowestTemperatureNum = Integer
 					.parseInt(lowestTempText.substring(0, lowestTempText.length() - 1).trim());
-			int maximumTemperatureNum = Integer.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
-			float humidityFloat = Float.parseFloat(humidityText.split("%")[0]) / 100.0f;
-			float visionNum = Float.parseFloat(visionText.split(" ")[0]);
-			float windFloat = Float.parseFloat(windText.split(" ")[0]);
-			int stopPointNum = Integer.parseInt(stopPointText.split(" ")[0]);
+			Integer maximumTemperatureNum = Integer.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
+			Float humidityFloat = Float.parseFloat(humidityText.split("%")[0]) / 100.0f;
+			Float visionNum = Float.parseFloat(visionText.split(" ")[0]);
+			Float windFloat = Float.parseFloat(windText.split(" ")[0]);
+			Integer stopPointNum = Integer.parseInt(stopPointText.split(" ")[0]);
 			Float uvIndexFloat = Float.parseFloat(uvIndexText);
 
 			// ghi file
@@ -232,23 +238,22 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 		writer.flush();
 		rawWriter.close();
 		writer.close();
-
 		// 2.3 Kiểm tra kết quả extract
 		// 2.3.1 Lấy thông tin FTP server từ FTPConfig
 		// 2.3.2 Connect FTP server
 
 		// 2.3.3 Extract dữ liệu thành công (đã có file trên ftp)
 		// 2.3.3.1 Upload file lên FTP server
-		String disFolder = sourceConfigDao.getDistFolder(SOURCE_ID);
+		String distFolder = sourceConfigDao.getDistFolder();
 		try {
-			ftpManager.getClient().makeDirectory(disFolder);
+			ftpManager.getClient().makeDirectory(distFolder);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		boolean isSuccess = false;
 		try {
-			isSuccess = ftpManager.pushFile(path, disFolder, fileName)
-					& ftpManager.pushFile(rawPath, disFolder, rawFileName);
+			isSuccess = ftpManager.pushFile(path, distFolder, fileName)
+					& ftpManager.pushFile(rawPath, distFolder, rawFileName);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -258,7 +263,9 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			procedure = Procedure.UPDATE_STATUS;
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setString(1, "EO");
-			System.out.println("Upload file thành công vào thư mục: " + disFolder);
+			callStmt.setInt(2, logId);
+			callStmt.execute();
+			System.out.println("Upload file thành công vào thư mục: " + distFolder);
 			result = true;
 			// ftpManager.listFolder(ftpManager.getClient(), disFolder);
 			// 2.3.3.1.2 Uploadfile không thành công
@@ -268,11 +275,11 @@ public class FirstProcessingThoiTietVn implements Query, Procedure, CurrentTimeS
 			procedure = Procedure.UPDATE_STATUS;
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setString(1, "EF");
+			callStmt.setInt(2, logId);
+			callStmt.execute();
 			System.out.println("Upload file không thành công, hãy thử lại <3");
+			result = false;
 		}
-		callStmt.setInt(2, logId);
-		callStmt.execute();
-
 		// 3. Close
 		// 3.1 Disconnect FTP
 		// 3.2 Close Database Control
