@@ -36,7 +36,7 @@ public class SecondProcessing implements Procedure, CreateDateDim {
 	}
 	
 	public void execute() throws InterruptedException {
-		loadProvinceToStagging();
+		if (!loadProvinceToStagging()) return;
 		loadWeatherFactFromThoiTietVN();
 		loadWeatherFactFromThoiTietEduVN();
 	}

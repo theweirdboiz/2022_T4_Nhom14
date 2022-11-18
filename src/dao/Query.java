@@ -15,7 +15,7 @@ public interface Query {
 	String SET_STATUS_WITH_ID_IN_LOG = "update log set status = ? where id = ?";
 	String SET_STATUS_WITH_FTPPATH_IN_LOG = "update log set status = ? where pathFTP = ?";
 
-	String CKECK_EXTRACTED_HOUR_CURRENT= "SELECT id from log where YEAR(timeLoad) = YEAR(NOW()) AND MONTH(timeLoad) = MONTH(NOW()) AND DAY(timeLoad) = DAY(NOW()) AND HOUR(timeLoad) = HOUR(NOW()) AND sourceId = ?";
+	String CKECK_EXTRACTED_HOUR_CURRENT= "SELECT id from log where YEAR(timeLoad) = YEAR(NOW()) AND MONTH(timeLoad) = MONTH(NOW()) AND DAY(timeLoad) = DAY(NOW()) AND HOUR(timeLoad) = HOUR(NOW()) AND sourceId = ? AND status = 'EO'";
 
 	String GET_PATH_SOURCE_WITH_STATE_IN_LOG = "select pathFTP from log where status = ? and sourceId = ?";
 	String GET_LOG_WITH_PROVINCE_STATUS_EL = "select id from log where sourceId = 3 and status = 'EL'";
