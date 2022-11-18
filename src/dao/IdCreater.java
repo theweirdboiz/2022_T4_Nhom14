@@ -1,13 +1,15 @@
 package dao;
 
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public interface IdCreater {
 	static final AtomicInteger ID = new AtomicInteger(0);
 
-	public static int createIdByCurrentTime() {
-		String currentTime = String.valueOf(System.currentTimeMillis());
-		return Integer.parseInt(currentTime.substring(currentTime.length() - 8, currentTime.length()));
+	public static String createIdRandom() {
+		String id = UUID.randomUUID().toString();
+		return id.substring(id.length() - 10, id.length());
 	}
 
 	public static int generateUniqueId() {

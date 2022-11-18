@@ -17,6 +17,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.FileDescriptor;
+import java.io.FileNotFoundException;
 
 import dao.IdCreater;
 import dao.control.LogControllerDao;
@@ -32,35 +33,47 @@ public class FirstProcessingExtractThoiTietEduVN {
 	private String source;
 	private String fileName;
 	private String path;
+	private String destination;
 	
-	public FirstProcessingExtractThoiTietEduVN() {
+	private Date current;
+	
+	private PrintWriter writer;
+	
+	public FirstProcessingExtractThoiTietEduVN() throws FileNotFoundException {
 		sourceConfigDao = new SourceConfigDao();
 		source = sourceConfigDao.getURL(SOURCE_ID);
-		fileName = sourceConfigDao.getFileName(SOURCE_ID);
 		
 		log = new LogControllerDao();
 		ftpManager = new FTPManager();
+		
+		current = new Date(Calendar.getInstance().getTime().getTime() + 1900);
+		DateFormat dateFormatForFileName = new SimpleDateFormat("dd-MM-yyyy_hh-mm-ss");
+		fileName = SOURCE_ID + "_" + dateFormatForFileName.format(current);
+		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID));
+		if (!folderExtract.exists()) folderExtract.mkdir();
+		path = folderExtract.getAbsolutePath() + File.separator + fileName;
+		writer = new PrintWriter(new File(path));
+		destination = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName;
 	}
 	
-	public void excute()  {
+	public void execute()  {
 		System.out.println("Extracting...");
-		log.insertLogDefault(IdCreater.createIdByCurrentTime(), SOURCE_ID);
+		if (log.checkExtractedAtHourCurrent(SOURCE_ID)) {
+			System.out.println("This source extracted!!");
+			return;
+		}
+		
+		String logId = IdCreater.createIdRandom();
+		log.insertLogDefault(logId, SOURCE_ID, destination);
 		try {
-			Date date = new Date(Calendar.getInstance().getTime().getTime() + 1900);
-			DateFormat dateFormatForFileName = new SimpleDateFormat("dd-mm-yyyy_hh-mm-ss");
-			fileName = dateFormatForFileName.format(date);
-			File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID));
-			if (!folderExtract.exists()) folderExtract.mkdir();
-			path = folderExtract.getAbsolutePath() + File.separator + fileName;
-			PrintWriter writer = new PrintWriter(new File(path));
 			Document root = Jsoup.connect(source).get();
 			
 			Elements provincesHTML = root.select("#child-item-childrens a");
-			DateFormat dateFormat = new SimpleDateFormat("dd/mm/yyyy hh:mm:ss");
-			writer.write(dateFormat.format(date) + "\n");
+			DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
+			writer.write(dateFormat.format(current) + "\n");
 			
 			for(Element elm : provincesHTML) {
-				String id = IdCreater.createIdByCurrentTime();
+				String id = IdCreater.createIdRandom();
 				Document weatherEachProvince = Jsoup.connect(source + elm.attr("href")).get();
 				String province = elm.text();
 				String currentTemperature = weatherEachProvince.selectFirst(".current-temperature").text();
@@ -86,27 +99,32 @@ public class FirstProcessingExtractThoiTietEduVN {
 				writer.write(id + "," + province + ","
 						+ currentTemperatureNum + "," + lostestTemperatureNum + "," + highestTemperatureNum + ","
 						+ humidityFloat + "," + overview + ","
-						+ visionNum + "," + windFloat + "," + stopPointNum + "," + uv + "," + airQuality + "\n");
+						+ windFloat + "," + visionNum + "," + stopPointNum + "," + uv + "," + airQuality + "\n");
 			}
 			writer.flush();
 			writer.close();
 			
 			if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID), fileName)) {
-				log.setStatus(SOURCE_ID, "EO");
+				log.setStatus(logId, "EO");
 				System.out.println("Extract OK");
 			}else {
-				log.setStatus(SOURCE_ID, "EF");
+				log.setStatus(logId, "EF");
 				System.out.println("Extract Fail");
 			}
 		} catch (IOException e) {
-			log.setStatus(SOURCE_ID, "EF");
+			log.setStatus(logId, "EF");
 			e.printStackTrace();
 		}
 	}
 	
 	public static void main(String[] args) {
 		System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8));
-		FirstProcessingExtractThoiTietEduVN processing = new FirstProcessingExtractThoiTietEduVN();
-		processing.excute();
+		FirstProcessingExtractThoiTietEduVN processing;
+		try {
+			processing = new FirstProcessingExtractThoiTietEduVN();
+			processing.execute();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 	}
 }

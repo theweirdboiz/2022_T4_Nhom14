@@ -15,7 +15,7 @@ import dao.control.FTPConfigDao;
 import db.FTPConnection;
 
 public class FTPManager {
-	private static FTPClient ftpClient;
+	private FTPClient ftpClient;
 	private FTPConfigDao ftpConfigDao;
 
 	public FTPManager() {
@@ -32,15 +32,15 @@ public class FTPManager {
 		return true;
 	}
 
-	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
-//		System.out.println("path:" + path);
-		BufferedInputStream bis = new BufferedInputStream(new FileInputStream(new File(path)));
-		distFolder = distFolder + "/" + CurrentTimeStamp.getCurrentDate();
-//		System.out.println("folder ftp: " + distFolder);
-		ftpClient.makeDirectory(distFolder);
-		return ftpClient.storeFile(distFolder + "/" + fileName, bis);
-
-	
+//	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
+////		System.out.println("path:" + path);
+//		BufferedInputStream bis = new BufferedInputStream(new FileInputStream(new File(path)));
+//		distFolder = distFolder + "/" + CurrentTimeStamp.getCurrentDate();
+////		System.out.println("folder ftp: " + distFolder);
+//		ftpClient.makeDirectory(distFolder);
+//		return ftpClient.storeFile(distFolder + "/" + fileName, bis);
+//
+//	
 	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
 		FileInputStream fis = new FileInputStream(new File(path));
 		ftpClient.makeDirectory(distFolder);
@@ -60,7 +60,6 @@ public class FTPManager {
 		try {
 			ftpClient.disconnect();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -83,16 +82,10 @@ public class FTPManager {
 
 	public static void main(String[] args) throws IOException {
 		FTPManager ftpManager = new FTPManager();
-//		System.out.println(ftpManager.checkDirectoryExists("weather_extract/2022-11-06"));
-//		ftpManager.getClient().makeDirectory("weather_extract/2022-11-06");
-//		System.out.println(("weather_extract/2022-11-07/2022-11-07_00.csv"));
-//		ftpClient.removeDirectory("weather_extract/2022-11-06");
-//		ftpClient.deleteFile("weather_extract/2022-11-07/2022-11-07_00.csv");
-		ftpManager.listFolder(ftpClient, "weather_extract/2022-11-07");
-//		System.out.println(ftpManager.checkDirectoryExists("weather_extract/2022-11-07"));
-	}
-
-			e.printStackTrace();
-		}
+//		FTPFile[] files = ftpManager.getClient().listDirectories("weather_extract");
+//		for (FTPFile file: files) {
+//			System.out.println(file.getName());
+//		}
+		ftpManager.getReaderFileInFTPServer("weather_extract/3_17-52-2022_02-52-11");
 	}
 }

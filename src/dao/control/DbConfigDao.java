@@ -23,7 +23,7 @@ public class DbConfigDao {
 		try {
 			query = Query.GET_DB_HOSTING;
 			statement = connection.prepareStatement(query);
-			statement.setString(1, "staging");
+			statement.setString(1, "stagging");
 			statement.setInt(2, 1);
 			ResultSet result = statement.executeQuery();
 			return result.next()
@@ -31,8 +31,9 @@ public class DbConfigDao {
 							result.getString("password"))
 					: null;
 		} catch (SQLException e) {
-			return null;
+			e.printStackTrace();
 		}
+		return null;
 	}
 
 	public DbHosting getDatawareHouseHosting() {
@@ -47,12 +48,9 @@ public class DbConfigDao {
 							result.getString("password"))
 					: null;
 		} catch (SQLException e) {
-			return null;
+			e.printStackTrace();
 		}
+		return null;
 	}
 
-	public static void main(String[] args) {
-		DbConfigDao configDao = new DbConfigDao();
-//		System.out.println(configDao.getStaggingHosting());
-	}
 }

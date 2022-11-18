@@ -70,11 +70,11 @@ public class SourceConfigDao {
 		}
 	}
 
-	public String getURL(int id) {
+	public String getURL(String id) {
 		try {
 			query = Query.GET_URL_SOURCE;
 			ps = connection.prepareStatement(query);
-			ps.setInt(1, id);
+			ps.setString(1, id);
 			rs = ps.executeQuery();
 			return rs.next() ? rs.getString("url") : null;
 		} catch (SQLException e) {
