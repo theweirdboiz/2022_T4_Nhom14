@@ -19,9 +19,9 @@ public class FTPManager {
 	private static FTPClient ftpClient;
 	private FTPConfigDao ftpConfigDao;
 
-	public FTPManager() {
+	public FTPManager(int sourceId) {
 		ftpConfigDao = new FTPConfigDao();
-		ftpClient = new FTPConnection(ftpConfigDao.getFTPHosting()).getClient();
+		ftpClient = new FTPConnection(ftpConfigDao.getFTPHosting(sourceId)).getClient();
 	}
 
 	public boolean checkDirectoryExists(String distFolder) throws IOException {
@@ -77,8 +77,7 @@ public class FTPManager {
 	}
 
 	public static void main(String[] args) throws IOException {
-		FTPManager ftpManager = new FTPManager();
-//		System.out.println(ftpManager.checkDirectoryExists("weather_extract/2022-11-07"));
-		ftpManager.listFolder(ftpClient, "weather_extract/2022-11-16");
+//		FTPManager ftpManager = new FTPManager();		
+//		ftpManager.listFolder(ftpClient, "weather_extract/2022-11-16");
 	}
 }

@@ -11,7 +11,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
 import org.jsoup.Jsoup;
@@ -24,11 +23,9 @@ import dao.IdCreater;
 import dao.Procedure;
 import dao.control.SourceConfigDao;
 import db.DbControlConnection;
-
 import ftp.FTPManager;
 
-public class FirstProcessingThoiTietVn {
-
+public class FirstProcessingProvince {
 	private FTPManager ftpManager;
 	private Connection connection;
 
@@ -37,13 +34,13 @@ public class FirstProcessingThoiTietVn {
 	private String procedure;
 
 	private SourceConfigDao sourceConfigDao;
-	private static final int SOURCE_ID = 1;
+	private static final int SOURCE_ID = 3;
 
 	private String sourceUrl;
 	private String fileName, rawFileName;
 	private String path, rawPath;
 
-	public FirstProcessingThoiTietVn() {
+	public FirstProcessingProvince() {
 		// 1. Connect Database Control
 		connection = DbControlConnection.getIntance().getConnect();
 		sourceConfigDao = new SourceConfigDao();
@@ -132,7 +129,7 @@ public class FirstProcessingThoiTietVn {
 		File folderExtract = new File(
 				sourceConfigDao.getPathFolder(SOURCE_ID) + File.separator + CurrentTimeStamp.getCurrentDate());
 		if (!folderExtract.exists()) {
-			System.out.println("Tạo mới folder chưa file dữ liệu đã extract!");
+			System.out.println("Tạo mới folder chứa file dữ liệu đã extract!");
 			folderExtract.mkdirs();
 		}
 		// Lấy đường dẫn tuyệt đối của file cần ghi
@@ -151,104 +148,31 @@ public class FirstProcessingThoiTietVn {
 		}
 
 		Document doc = null;
-		Elements provinces = null;
+
 		try {
 			// connect source
 			doc = Jsoup.connect(sourceUrl).get();
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.out.println("Có gì đó sai sai!");
 			return false;
 		}
 		try {
-			provinces = doc.select(".megamenu a");
-			String separator = ", ";
-			for (int i = 0; i < provinces.size(); i++) {
-				int id = IdCreater.generateUniqueId();
-				String dataURL = sourceUrl + provinces.get(i).attr("href");
-				Document docItem = null;
-				try {
-					docItem = Jsoup.connect(dataURL).get();
-				} catch (IOException e) {
-					e.printStackTrace();
-					return false;
-				}
-				// province name
-				String provinceName = provinces.get(i).attr("title");
-				String currentDate = folderExtract.getName();
-
-				// current_time
-				SimpleDateFormat dt = new SimpleDateFormat("HH:mm");
-				String currentTime = dt.format(CurrentTimeStamp.timestamp);
-				Element currentTemp = docItem.select(".current-temperature").first();
-
-				// current_temperature
-				String currentTemperatureText = currentTemp.text();
-
-				// overview
-				String overViewText = docItem.select(".overview-caption-item.overview-caption-item-detail").text();
-
-				// lowest_temp
-				String lowestTempText = docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0];
-
-				// maximum_temp
-				String maximumText = docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text()
-						.split("/")[1];
-
-				// humidity
-				String humidityText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text();
-
-				// vision
-				String visionText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text();
-
-				// wind
-				String windText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text();
-
-				// stop_point
-				String stopPointText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text();
-
-				// uv_index
-				String uvIndexText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text();
-//			String uvIndexText = docItem.select(".weather-d231bold").text();
-
-
-				// air_quality
-				String airQualityText = docItem.select(".air-api.air-active").text();
-//				String airQualityText = docItem.select(".addfdddf").text();
-
-
-				// ghi file
-				rawWriter.write(id + separator + provinceName + separator + currentDate + separator + currentTime
-						+ separator + currentTemperatureText + separator + overViewText + separator + lowestTempText
-						+ separator + maximumText + separator + maximumText + separator + visionText + separator
-						+ windText + separator + stopPointText + separator + uvIndexText + separator + airQualityText
-						+ "\n");
-
-				// pretreatment
-				Integer currentTemperatureNum = Integer
-						.parseInt(currentTemperatureText.substring(0, currentTemperatureText.length() - 1).trim());
-				Integer lowestTemperatureNum = Integer
-						.parseInt(lowestTempText.substring(0, lowestTempText.length() - 1).trim());
-				Integer maximumTemperatureNum = Integer
-						.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
-				Float humidityFloat = Float.parseFloat(humidityText.split("%")[0]) / 100.0f;
-				Float visionNum = Float.parseFloat(visionText.split(" ")[0]);
-				Float windFloat = Float.parseFloat(windText.split(" ")[0]);
-				Integer stopPointNum = Integer.parseInt(stopPointText.split(" ")[0]);
-				Float uvIndexFloat = Float.parseFloat(uvIndexText);
-
-				// ghi file
-				writer.write(id + separator + provinceName + separator + currentDate + separator + currentTime
-						+ separator + currentTemperatureNum + separator + overViewText + separator
-						+ lowestTemperatureNum + separator + maximumTemperatureNum + separator + humidityFloat
-						+ separator + visionNum + separator + windFloat + separator + stopPointNum + separator
-						+ uvIndexFloat + separator + airQualityText + "\n");
-				rawWriter.flush();
+			Element provinceTable = doc.selectFirst("table");
+			Elements rows = provinceTable.select("tr");
+			for (int i = 1; i < rows.size(); i++) {
+				String rowOut = i + ",";
+				Elements row = rows.get(i).select("td");
+				rowOut += row.get(1).text();
+				writer.println(rowOut);
+				rawWriter.println(rowOut);
 				writer.flush();
+				rawWriter.flush();
 			}
-			rawWriter.close();
 			writer.close();
+			rawWriter.close();
 		} catch (NullPointerException e) {
 			System.out.println("Có gì đó sai sai!");
+			return false;
 		}
 
 		// 2.3 Kiểm tra kết quả extract
@@ -304,13 +228,20 @@ public class FirstProcessingThoiTietVn {
 		return result;
 	}
 
-	public static void main(String[] args) throws IOException, SQLException {
-		FirstProcessingThoiTietVn firstProcessing = new FirstProcessingThoiTietVn();
-		boolean result = firstProcessing.runScript();
-		if (result) {
-			System.out.println("Process 1: success!");
-		} else {
-			System.out.println("Process 1: try again!");
+	public static void main(String[] args) {
+		FirstProcessingProvince firstProcessingProvince = new FirstProcessingProvince();
+		try {
+			boolean result = firstProcessingProvince.runScript();
+			if (result) {
+				System.out.println("Process 1: success!");
+			} else {
+				System.out.println("Process 1: try again!");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
+
 }

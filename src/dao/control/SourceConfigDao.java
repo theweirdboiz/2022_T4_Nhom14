@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import dao.Procedure;
-import dao.SOURCE_ID;
 import db.DbControlConnection;
 import db.MySQLConnection;
 
@@ -19,14 +18,13 @@ public class SourceConfigDao {
 
 	public SourceConfigDao() {
 		connection = DbControlConnection.getIntance().getConnect();
-
 	}
 
-	public String getURL() {
+	public String getURL(int id) {
 		try {
 			query = Procedure.GET_URL_SOURCE;
 			ps = connection.prepareCall(query);
-			ps.setInt(1, SOURCE_ID.getId());
+			ps.setInt(1, id);
 			rs = ps.executeQuery();
 			return rs.next() ? rs.getString("url").trim() : null;
 		} catch (SQLException e) {
@@ -42,11 +40,11 @@ public class SourceConfigDao {
 		}
 	}
 
-	public String getPathFolder() {
+	public String getPathFolder(int id) {
 		try {
 			query = Procedure.GET_PATH_FOLDER;
 			ps = connection.prepareCall(query);
-			ps.setInt(1, SOURCE_ID.getId());
+			ps.setInt(1, id);
 			rs = ps.executeQuery();
 			return rs.next() ? rs.getString("pathFolder").trim() : null;
 		} catch (SQLException e) {
@@ -54,11 +52,11 @@ public class SourceConfigDao {
 		}
 	}
 
-	public String getDistFolder() {
+	public String getDistFolder(int id) {
 		try {
 			query = Procedure.GET_DIST_FOLDER;
 			ps = connection.prepareCall(query);
-			ps.setInt(1, SOURCE_ID.getId());
+			ps.setInt(1, id);
 			rs = ps.executeQuery();
 			return rs.next() ? rs.getString("distFolder").trim() : null;
 		} catch (SQLException e) {
@@ -68,8 +66,7 @@ public class SourceConfigDao {
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
-		System.out.println(sourceConfigDao.getDistFolder());
-//		System.out.println(sourceConfigDao.getURL());
+		System.out.println(sourceConfigDao.getPathFolder(3));
 //		System.out.println(sourceConfigDao.getFileName());
 	}
 }

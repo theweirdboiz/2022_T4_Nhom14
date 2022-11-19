@@ -11,7 +11,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
 import org.jsoup.Jsoup;
@@ -24,11 +23,9 @@ import dao.IdCreater;
 import dao.Procedure;
 import dao.control.SourceConfigDao;
 import db.DbControlConnection;
-
 import ftp.FTPManager;
 
-public class FirstProcessingThoiTietVn {
-
+public class FirstProcessingThoiTietEduVn {
 	private FTPManager ftpManager;
 	private Connection connection;
 
@@ -37,13 +34,13 @@ public class FirstProcessingThoiTietVn {
 	private String procedure;
 
 	private SourceConfigDao sourceConfigDao;
-	private static final int SOURCE_ID = 1;
+	private static final int SOURCE_ID = 2;
 
 	private String sourceUrl;
 	private String fileName, rawFileName;
 	private String path, rawPath;
 
-	public FirstProcessingThoiTietVn() {
+	public FirstProcessingThoiTietEduVn() {
 		// 1. Connect Database Control
 		connection = DbControlConnection.getIntance().getConnect();
 		sourceConfigDao = new SourceConfigDao();
@@ -150,107 +147,51 @@ public class FirstProcessingThoiTietVn {
 			e.printStackTrace();
 		}
 
-		Document doc = null;
-		Elements provinces = null;
+		Document root = null;
 		try {
-			// connect source
-			doc = Jsoup.connect(sourceUrl).get();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return false;
-		}
-		try {
-			provinces = doc.select(".megamenu a");
-			String separator = ", ";
-			for (int i = 0; i < provinces.size(); i++) {
-				int id = IdCreater.generateUniqueId();
-				String dataURL = sourceUrl + provinces.get(i).attr("href");
-				Document docItem = null;
-				try {
-					docItem = Jsoup.connect(dataURL).get();
-				} catch (IOException e) {
-					e.printStackTrace();
-					return false;
-				}
-				// province name
-				String provinceName = provinces.get(i).attr("title");
+			root = Jsoup.connect(sourceUrl).get();
+			Elements provincesHTML = root.select("#child-item-childrens a");
+			for (int i = 0; i < provincesHTML.size(); i++) {
 				String currentDate = folderExtract.getName();
-
-				// current_time
 				SimpleDateFormat dt = new SimpleDateFormat("HH:mm");
 				String currentTime = dt.format(CurrentTimeStamp.timestamp);
-				Element currentTemp = docItem.select(".current-temperature").first();
+				int id = IdCreater.generateUniqueId();
+				Document weatherEachProvince = Jsoup.connect(sourceUrl + provincesHTML.get(i).attr("href")).get();
+				String province = provincesHTML.get(i).text();
+				String currentTemperature = weatherEachProvince.selectFirst(".current-temperature").text();
+				String overview = weatherEachProvince.select(".overview-caption-item-detail").get(0).text();
+				Elements weatherDetails = weatherEachProvince.select(".weather-detail-location");
+				String lostestTemperature = weatherDetails.get(0).select("span").get(1).text().split("/")[0];
+				String highestTemperature = weatherDetails.get(0).select("span").get(1).text().split("/")[1];
+				String humidity = weatherDetails.get(1).select("span").get(2).text();
+				String vision = weatherDetails.get(2).select("span").get(1).text();
+				String wind = weatherDetails.get(3).select("span").get(1).text();
+				String stopPoint = weatherDetails.get(4).select("span").get(1).text();
+				Float uv = Float.parseFloat(weatherDetails.get(5).select("span").get(1).text());
+				String airQuality = weatherEachProvince.select(".air-api").text();
 
-				// current_temperature
-				String currentTemperatureText = currentTemp.text();
-
-				// overview
-				String overViewText = docItem.select(".overview-caption-item.overview-caption-item-detail").text();
-
-				// lowest_temp
-				String lowestTempText = docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0];
-
-				// maximum_temp
-				String maximumText = docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text()
-						.split("/")[1];
-
-				// humidity
-				String humidityText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text();
-
-				// vision
-				String visionText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text();
-
-				// wind
-				String windText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text();
-
-				// stop_point
-				String stopPointText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text();
-
-				// uv_index
-				String uvIndexText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text();
-//			String uvIndexText = docItem.select(".weather-d231bold").text();
-
-
-				// air_quality
-				String airQualityText = docItem.select(".air-api.air-active").text();
-//				String airQualityText = docItem.select(".addfdddf").text();
-
-
-				// ghi file
-				rawWriter.write(id + separator + provinceName + separator + currentDate + separator + currentTime
-						+ separator + currentTemperatureText + separator + overViewText + separator + lowestTempText
-						+ separator + maximumText + separator + maximumText + separator + visionText + separator
-						+ windText + separator + stopPointText + separator + uvIndexText + separator + airQualityText
-						+ "\n");
-
-				// pretreatment
-				Integer currentTemperatureNum = Integer
-						.parseInt(currentTemperatureText.substring(0, currentTemperatureText.length() - 1).trim());
-				Integer lowestTemperatureNum = Integer
-						.parseInt(lowestTempText.substring(0, lowestTempText.length() - 1).trim());
-				Integer maximumTemperatureNum = Integer
-						.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
-				Float humidityFloat = Float.parseFloat(humidityText.split("%")[0]) / 100.0f;
-				Float visionNum = Float.parseFloat(visionText.split(" ")[0]);
-				Float windFloat = Float.parseFloat(windText.split(" ")[0]);
-				Integer stopPointNum = Integer.parseInt(stopPointText.split(" ")[0]);
-				Float uvIndexFloat = Float.parseFloat(uvIndexText);
-
-				// ghi file
-				writer.write(id + separator + provinceName + separator + currentDate + separator + currentTime
-						+ separator + currentTemperatureNum + separator + overViewText + separator
-						+ lowestTemperatureNum + separator + maximumTemperatureNum + separator + humidityFloat
-						+ separator + visionNum + separator + windFloat + separator + stopPointNum + separator
-						+ uvIndexFloat + separator + airQualityText + "\n");
+				int currentTemperatureNum = Integer
+						.parseInt(currentTemperature.substring(0, currentTemperature.length() - 1).trim());
+				int lostestTemperatureNum = Integer
+						.parseInt(lostestTemperature.substring(0, lostestTemperature.length() - 1).trim());
+				int highestTemperatureNum = Integer
+						.parseInt(highestTemperature.substring(0, highestTemperature.length() - 1).trim());
+				float humidityFloat = Float.parseFloat(humidity.split(" ")[0]) / 100.0f;
+				float visionNum = Float.parseFloat(vision.split(" ")[0]);
+				float windFloat = Float.parseFloat(wind.split(" ")[0]);
+				int stopPointNum = Integer.parseInt(stopPoint.split(" ")[0]);
+				writer.write(id + "," + province + "," + currentDate + "," + currentTime + "," + currentTemperatureNum
+						+ "," + overview + "," + lostestTemperatureNum +","+ highestTemperatureNum + "," + humidityFloat
+						+ "," + visionNum + "," + windFloat + "," + stopPointNum + "," + uv + "," + airQuality + "\n");
 				rawWriter.flush();
 				writer.flush();
 			}
 			rawWriter.close();
 			writer.close();
-		} catch (NullPointerException e) {
-			System.out.println("Có gì đó sai sai!");
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
-
 		// 2.3 Kiểm tra kết quả extract
 		// 2.3.1 Lấy thông tin FTP server từ FTPConfig
 		// 2.3.2 Connect FTP server
@@ -305,7 +246,7 @@ public class FirstProcessingThoiTietVn {
 	}
 
 	public static void main(String[] args) throws IOException, SQLException {
-		FirstProcessingThoiTietVn firstProcessing = new FirstProcessingThoiTietVn();
+		FirstProcessingThoiTietEduVn firstProcessing = new FirstProcessingThoiTietEduVn();
 		boolean result = firstProcessing.runScript();
 		if (result) {
 			System.out.println("Process 1: success!");

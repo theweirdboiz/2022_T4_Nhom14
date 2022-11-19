@@ -10,7 +10,6 @@ import org.apache.commons.net.ftp.FTPClient;
 import com.mysql.cj.protocol.Resultset;
 
 import dao.Procedure;
-import dao.SOURCE_ID;
 import db.DbControlConnection;
 import db.MySQLConnection;
 import model.DbHosting;
@@ -26,12 +25,12 @@ public class FTPConfigDao {
 		connection = DbControlConnection.getIntance().getConnect();
 	}
 
-	public FTPHosting getFTPHosting() {
+	public FTPHosting getFTPHosting(int sourceId) {
 		FTPHosting ftpHosting = null;
 		try {
 			query = Procedure.GET_FTP_HOSTING;
 			statement = connection.prepareCall(query);
-			statement.setInt(1, SOURCE_ID.getId());
+			statement.setInt(1,sourceId );
 			ResultSet result = statement.executeQuery();
 
 			if (result.next()) {
