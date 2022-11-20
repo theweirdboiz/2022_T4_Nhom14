@@ -7,7 +7,7 @@ public interface IdCreater {
 
 	public static int createIdByCurrentTime() {
 		String currentTime = String.valueOf(System.currentTimeMillis());
-		return Integer.parseInt(currentTime.substring(currentTime.length() - 8, currentTime.length()));
+		return Integer.parseInt(currentTime.substring(currentTime.length() - 6, currentTime.length()));
 	}
 
 	public static int generateUniqueId() {

@@ -34,7 +34,7 @@ public class  ProvinceDimDao {
 			// 1.1.1 Nếu không có file nào mới -> kết thúc
 			if (!rs.next()) {
 				System.out.println("Không có file mới");
-				return result;
+				return true;
 			}
 			// 1.1.2 Nếu có -> lấy thông tin từ dòng dữ liệu này: logId, status, sourceId,
 			// timeLoad,dateLoad

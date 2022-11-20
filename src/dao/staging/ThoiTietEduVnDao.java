@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.StringTokenizer;
 
+import dao.IdCreater;
 import dao.Procedure;
 import dao.control.DbConfigDao;
 import dao.control.SourceConfigDao;
@@ -21,7 +22,7 @@ public class ThoiTietEduVnDao {
 	private static final int SOURCE_ID = 2;
 	private static final String EXTENSION = ".csv";
 
-	private boolean createRawData() {
+	public boolean createRawData() {
 		boolean result = false;
 		FTPManager ftpManager = new FTPManager(SOURCE_ID);
 		// 1. Connect db control
@@ -72,7 +73,7 @@ public class ThoiTietEduVnDao {
 					StringTokenizer stk = new StringTokenizer(rowData, ",");
 					String provinceName = null;
 					String dateLoadData = null;
-					Integer timeLoadData = null;
+					String timeLoadData = null;
 					Integer currentTemp = null;
 					String overview = null;
 					Integer minTemp = null;
@@ -87,7 +88,7 @@ public class ThoiTietEduVnDao {
 					int id = Integer.parseInt(stk.nextToken().trim());
 					provinceName = stk.nextToken().trim();
 					dateLoadData = stk.nextToken().trim();
-					timeLoadData = Integer.parseInt(stk.nextToken().trim().split(":")[0]);
+					timeLoadData = stk.nextToken().trim();
 					currentTemp = Integer.parseInt(stk.nextToken().trim());
 					overview = stk.nextToken().trim();
 					minTemp = Integer.parseInt(stk.nextToken().trim());
@@ -99,12 +100,12 @@ public class ThoiTietEduVnDao {
 					uvIndex = Float.parseFloat(stk.nextToken().trim());
 					airQuality = stk.nextToken().trim();
 					// 1.1.7 Load into staging.raw_weather_data by line
-					procedure = Procedure.LOAD_THOI_TIET_EDU_VN_INTO_STAGING;
+					procedure = Procedure.LOAD_RAW_WEATHER_DATA_INTO_STAGING;
 					callStmt = connection.prepareCall(procedure);
-					callStmt.setInt(1, id);
+					callStmt.setInt(1, IdCreater.createIdByCurrentTime());
 					callStmt.setString(2, provinceName);
 					callStmt.setString(3, dateLoadData);
-					callStmt.setInt(4, timeLoadData);
+					callStmt.setString(4, timeLoadData);
 					callStmt.setInt(5, currentTemp);
 					callStmt.setString(6, overview);
 					callStmt.setInt(7, minTemp);
@@ -126,18 +127,20 @@ public class ThoiTietEduVnDao {
 					callStmt.setString(1, "EL");
 					callStmt.setInt(2, logId);
 					callStmt.execute();
-					System.out.println("Create staging.raw_weather_data_thoitieteduvn successful!");
+					System.out.println("Insert data ThoiTietEduVn successful!");
 					return true;
 				} else {
-					System.out.println("Create staging.raw_weather_data_thoitieteduvn not successful!");
+					System.out.println("Insert data ThoiTietVn not successful!");
 					return false;
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.out.println("Chắc là đường dẫn này không tồn tại!");
 			}
+			connection.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
+
 		}
 		return result;
 	}
