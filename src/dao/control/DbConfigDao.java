@@ -43,7 +43,7 @@ public class DbConfigDao {
 		try {
 			query = Procedure.GET_DB_HOSTING;
 			statement = connection.prepareCall(query);
-			statement.setString(1, "warehouse");
+			statement.setString(1, "datawarehouse");
 			ResultSet result = statement.executeQuery();
 			if (result.next()) {
 				dbHosting = new DbHosting(

@@ -1,7 +1,60 @@
 DELIMITER $$
-CREATE PROCEDURE LOAD_DATA_WEATHER_INTO_STAGING(
+CREATE PROCEDURE CHECK_DATE_DIM_IS_EXISTED(
+) 
+BEGIN
+	SELECT * FROM datedim LIMIT 1;
+END
+$$
+
+DELIMITER $$
+CREATE PROCEDURE CHECK_TIME_DIM_IS_EXISTED(
+) 
+BEGIN
+	SELECT * FROM timedim LIMIT 1;
+END
+$$
+
+-- drop PROCEDURE TRANSFORM_WEATHER_FACT
+delimiter $$
+CREATE PROCEDURE TRANSFORM_WEATHER_FACT(
+	IN SK INT,
+	IN province_name nvarchar(75),
+	IN date_load date,
+	IN time_load time,
+	IN currentTemp int,
+	IN overview nvarchar(100),
+	IN lowestTemp int,
+	IN maximumTemp int,
+	IN humidity float,
+	IN vision float,
+	IN wind float, 
+	IN stopPoint int, 
+	IN uvIndex float,
+	IN airQuality nvarchar(50),
+	IN timeLoad datetime
+	)
+BEGIN
+-- 	select @timeLoad := time from timedim WHERE timedim.id = time_id;
+	select @province_id:= provincedim.id from provincedim WHERE provincedim.name = province_name;
+	select @date_id:= datedim.id from datedim WHERE datedim.date = date_load;
+	select @time_id:= timedim.id from timedim WHERE timedim.time = time_load;
+
+	REPLACE INTO weatherfact VALUES (SK,@province_id,@date_id,@time_id,currentTemp,overview,lowestTemp,maximumTemp,
+	humidity,vision,wind,stopPoint,uvIndex,airQuality,timeLoad,DEFAULT);
+END
+$$
+
+-- select id from timedim WHERE timedim.time = '00:00'
+-- 
+-- select @province_id:= provincedim.id from provincedim WHERE provincedim.name = 'Lạng Sơn'
+-- SELECT raw_weather_data_thoitietvn.*,raw_weather_data_thoitieteduvn.* from raw_weather_data_thoitietvn,raw_weather_data_thoitieteduvn
+-- drop PROCEDURE LOAD_RAW_WEATHER_DATA_INTO_STAGING
+DELIMITER $$
+CREATE PROCEDURE LOAD_RAW_WEATHER_DATA_INTO_STAGING(
 IN ID_PARAM INT,
-IN NAME_PARAM NVARCHAR(50),
+IN PROVINCE_NAME_PARAM NVARCHAR(50),
+IN DATE_LOAD_PARAM DATE,
+IN TIME_LOAD_PARAM TIME,
 IN CURRENT_TEMP_PARAM INT,
 IN OVERVIEW_PARAM NVARCHAR(100),
 IN LOWEST_TEMP_PARAM INT,
@@ -14,20 +67,24 @@ IN UV_INDEX_PARAM FLOAT,
 IN AIR_QUALITY_PARAM NVARCHAR(50)
 )
 BEGIN
-		INSERT INTO RAW_WEATHER_DATA VALUES (ID_PARAM, NAME_PARAM, CURRENT_TEMP_PARAM, OVERVIEW_PARAM,LOWEST_TEMP_PARAM,MAXIMUM_TEMP_PARAM,
-	MAXIMUM_TEMP_PARAM,HUMIDITY_PARAM,VISION_PARAM,WIND_PARAM,STOP_POINT_PARAM,AIR_QUALITY_PARAM);
+		REPLACE INTO raw_weather_data 
+		VALUES (
+		ID_PARAM,
+		PROVINCE_NAME_PARAM, 
+		DATE_LOAD_PARAM,
+		TIME_LOAD_PARAM,
+		CURRENT_TEMP_PARAM, 
+		OVERVIEW_PARAM, 
+		LOWEST_TEMP_PARAM,
+		MAXIMUM_TEMP_PARAM,
+		HUMIDITY_PARAM,
+		VISION_PARAM,
+		WIND_PARAM,
+		STOP_POINT_PARAM,
+		UV_INDEX_PARAM,
+		AIR_QUALITY_PARAM);
 END
 $$
-
--- DROP PROCEDURE LOAD_DATA_WEATHER_INTO_STAGING
--- DELIMITER $$
-CREATE PROCEDURE DELETE_DATE_DIM(
-)
-BEGIN
-	DELETE FROM datedim;
-END
-$$
-
 DELIMITER $$
 CREATE PROCEDURE LOAD_DATE_DIM(
 IN ID_PARAM INT,
@@ -58,13 +115,14 @@ SELECT CURRENT_TIME
 -- DROP PROCEDURE LOAD_DATE_DIM
 
 
+-- DROP PROCEDURE LOAD_PROVINCE_DIM
 DELIMITER $$
 CREATE PROCEDURE LOAD_PROVINCE_DIM (
 IN ID_PARAM INT,
 IN NAME_PARAM NVARCHAR(100)
 )
 BEGIN
-INSERT INTO provincedim VALUES (ID_PARAM, NAME_PARAM);
+REPLACE INTO provincedim VALUES (ID_PARAM, NAME_PARAM);
 END$$
 
 DELIMITER $$

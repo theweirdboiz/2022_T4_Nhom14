@@ -1,7 +1,10 @@
-/weather_extract
+/weather_extract_1
+/weather_extract_2
+/province_extract
 /lib
 .metadata
 .idea
 .project
 .classpath
+.time_dim.csv
 .date_dim.csv

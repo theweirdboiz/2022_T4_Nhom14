@@ -45,8 +45,7 @@ public class FTPConfigDao {
 
 	public static void main(String[] args) {
 //		FTPHosting ftpHosting = new 
-		FTPConfigDao configDao = new FTPConfigDao();
-//		FTPHosting ftpHosting = configDao.getFTPHosting();
+
 
 	}
 }

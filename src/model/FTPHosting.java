@@ -1,16 +1,20 @@
 package model;
 
 public class FTPHosting {
+	private String host;
+	private int port;
+	private String username;
+	private String password;
+	public FTPHosting() {
+		// TODO Auto-generated constructor stub
+	}
 	@Override
 	public String toString() {
 		return "FTPHosting [host=" + host + ", port=" + port + ", username=" + username + ", password=" + password
 				+ "]";
 	}
 
-	private String host;
-	private int port;
-	private String username;
-	private String password;
+
 	
 	public FTPHosting(String host, int port, String username, String password) {
 		this.host = host;

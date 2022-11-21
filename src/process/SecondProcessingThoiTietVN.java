@@ -121,11 +121,5 @@ public class SecondProcessingThoiTietVN implements Procedure {
 		} else {
 			System.out.println("Create fact not successful!");
 		}
-//		sp.transformWeatherFact();
-//		ProvinceDimDao.createProvinceDim();
-//		sp.loadTimeDim();
-//		sp.loadThoiTietEduVN();
-//		sp.loadThoiTietVN();
-//		sp.runScript();
 	}
 }

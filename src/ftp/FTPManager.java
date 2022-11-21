@@ -19,6 +19,10 @@ public class FTPManager {
 	private static FTPClient ftpClient;
 	private FTPConfigDao ftpConfigDao;
 
+	public FTPManager() {
+		// TODO Auto-generated constructor stub
+	}
+
 	public FTPManager(int sourceId) {
 		ftpConfigDao = new FTPConfigDao();
 		ftpClient = new FTPConnection(ftpConfigDao.getFTPHosting(sourceId)).getClient();
@@ -38,6 +42,7 @@ public class FTPManager {
 		BufferedInputStream bis = new BufferedInputStream(new FileInputStream(new File(path)));
 		distFolder = distFolder + "/" + CurrentTimeStamp.getCurrentDate();
 		ftpClient.makeDirectory(distFolder);
+		System.out.println(distFolder + "/" + fileName);
 		return ftpClient.storeFile(distFolder + "/" + fileName, bis);
 
 	}
@@ -77,7 +82,7 @@ public class FTPManager {
 	}
 
 	public static void main(String[] args) throws IOException {
-//		FTPManager ftpManager = new FTPManager();		
-//		ftpManager.listFolder(ftpClient, "weather_extract/2022-11-16");
+		FTPManager ftpManager = new FTPManager();
+		ftpManager.listFolder(ftpClient, "weather_extract_1");
 	}
 }

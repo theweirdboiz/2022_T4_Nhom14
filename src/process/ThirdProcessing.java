@@ -1,15 +1,29 @@
 package process;
 
+import dao.warehouse.WarehouseDao;
+
 public class ThirdProcessing {
-    public ThirdProcessing ()
-    {
+	WarehouseDao warehouseDao;
 
-    }
-    // + Load dims
-    // + Load dim provinces
-    // + Load dim source
-    // + Ad SK for fact
-    // + Load fact
-    // + Remove data in Staging
+	public ThirdProcessing() {
+		warehouseDao = new WarehouseDao();
+	}
 
+	public boolean load() {
+		boolean result = false;
+//		load dim
+		if (warehouseDao.loadDateDim() && warehouseDao.loadTimeDim() && warehouseDao.loadProvinceDim()) {
+			if (!warehouseDao.getAllWeatherData()) {
+				return warehouseDao.insertAllWeatherDataFromStaging();
+			}
+		}
+		return result;
+
+//		Lấy các dữ liệu đang sử dụng so sánh với dữ liệu mới trước khi load
+	}
+
+	public static void main(String[] args) {
+		ThirdProcessing thirdProcessing = new ThirdProcessing();
+		System.out.println(thirdProcessing.load());
+	}
 }
