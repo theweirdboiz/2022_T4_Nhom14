@@ -38,18 +38,14 @@ public class FTPManager {
 	}
 
 	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
-
-		BufferedInputStream bis = new BufferedInputStream(new FileInputStream(new File(path)));
-		distFolder = distFolder + "/" + CurrentTimeStamp.getCurrentDate();
+		FileInputStream fis = new FileInputStream(new File(path));
 		ftpClient.makeDirectory(distFolder);
-		System.out.println(distFolder + "/" + fileName);
-		return ftpClient.storeFile(distFolder + "/" + fileName, bis);
-
+		System.out.println(distFolder);
+		return ftpClient.storeFile(distFolder + "/" + fileName, fis);
 	}
 
 	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
-		System.out.println(path);
-		return new BufferedReader(new InputStreamReader(new FileInputStream(path)));
+		return new BufferedReader(new InputStreamReader(ftpClient.retrieveFileStream(path)));
 	}
 
 	public FTPClient getClient() {
@@ -60,7 +56,6 @@ public class FTPManager {
 		try {
 			ftpClient.disconnect();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -83,6 +78,6 @@ public class FTPManager {
 
 	public static void main(String[] args) throws IOException {
 		FTPManager ftpManager = new FTPManager();
-		ftpManager.listFolder(ftpClient, "weather_extract_1");
+//		ftpManager.listFolder(ftpClient, "weather_extract_1");
 	}
 }

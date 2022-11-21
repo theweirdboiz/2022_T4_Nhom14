@@ -12,6 +12,7 @@ import java.util.StringTokenizer;
 import dao.IdCreater;
 import dao.Procedure;
 import dao.control.DbConfigDao;
+import dao.control.FTPConfigDao;
 import dao.control.SourceConfigDao;
 import db.DbControlConnection;
 import db.MySQLConnection;
@@ -21,21 +22,29 @@ import model.DbHosting;
 public class ThoiTietVnDao {
 	private static final int SOURCE_ID = 1;
 	private static final String EXTENSION = ".csv";
+	Connection connection;
+	String procedure;
+	CallableStatement callStmt;
+	ResultSet rs;
+
+	public ThoiTietVnDao() {
+		connection = DbControlConnection.getIntance().getConnect();
+	}
 
 	public boolean createRawData() {
 		boolean result = false;
-		FTPManager ftpManager = new FTPManager(SOURCE_ID);
+		FTPConfigDao ftpConfigDao = new FTPConfigDao();
+		ftpConfigDao.getFTPHosting(SOURCE_ID);
 		// 1. Connect db control
-		Connection connection = DbControlConnection.getIntance().getConnect();
 		// 2.4 Lấy id có trạng thái 'EO' và ngày ghi log = ngày hôm nay cập nhật sang
 		// stt 'EL'
 		// 1.1 Lấy một dòng dữ liệu
 		// current_date and status ='EO' AND ID=SOURCE_ID_THOI_TIET_VN
 		try {
-			String procedure = Procedure.GET_ONE_FILE_IN_FTP;
-			CallableStatement callStmt = connection.prepareCall(procedure);
+			procedure = Procedure.GET_ONE_FILE_IN_FTP;
+			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, SOURCE_ID);
-			ResultSet rs = callStmt.executeQuery();
+			rs = callStmt.executeQuery();
 			// 1.1.1 Nếu không có file nào mới -> kết thúc
 			if (!rs.next()) {
 				System.out.println("Không có file mới");

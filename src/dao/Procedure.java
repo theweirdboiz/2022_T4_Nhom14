@@ -11,7 +11,7 @@ public interface Procedure {
 
 	// process1
 	String GET_ONE_ROW_FROM_LOG = "{CALL GET_ONE_ROW_FROM_LOG(?)}";
-	String INSERT_RECORD = "{CALL INSERT_RECORD(?,?)}";
+	String INSERT_RECORD = "{CALL INSERT_RECORD(?,?,?,?)}";
 	String UPDATE_STATUS = "{CALL UPDATE_STATUS(?,?)}";
 	String UPDATE_TIME_LOAD = "{CALL UPDATE_TIME_LOAD(?,?)}";
 

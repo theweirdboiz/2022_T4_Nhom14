@@ -103,4 +103,8 @@ public class  ProvinceDimDao {
 		}
 		return result;
 	}
+	public static void main(String[] args) {
+		ProvinceDimDao provinceDimDao = new ProvinceDimDao();
+		provinceDimDao.create();
+	}
 }

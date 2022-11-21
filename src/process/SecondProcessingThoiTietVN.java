@@ -70,8 +70,9 @@ public class SecondProcessingThoiTietVN implements Procedure {
 		return result;
 	}
 
-	private boolean transformWeatherFact() {
+	private boolean transformWeatherFact() throws SQLException {
 		boolean result = false;
+		connection.close();
 		dbHosting = dbConfigDao.getStagingHosting();
 		connection = new MySQLConnection(dbHosting).getConnect();
 		String query = "SELECT * FROM raw_weather_data";
