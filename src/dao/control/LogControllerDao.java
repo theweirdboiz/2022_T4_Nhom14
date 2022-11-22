@@ -87,7 +87,7 @@ public class LogControllerDao {
 			
 			ResultSet result = statement.executeQuery();
 			
-			return result.next() ? result.getString("pathFTP") : null; 
+			return result.next() ? result.getString("path_ftp") : null; 
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;
