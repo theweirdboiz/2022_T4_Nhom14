@@ -34,24 +34,17 @@ public class FirstProcessingThoiTietVn {
 	private FTPManager ftpManager;
 	private LogControllerDao log;
 
-	private CallableStatement callStmt;
-	private ResultSet rs;
-	private String procedure;
-
 	private SourceConfigDao sourceConfigDao;
 	private static final int SOURCE_ID = 1;
 
 	private String sourceUrl, destinationUrl;
-	private String fileName, rawFileName, extension, separator;
+	private String fileName, extension, separator;
 	private String path, rawPath;
 
 	private PrintWriter writer, rawWriter;
 	private Date currentDate;
 
 	public FirstProcessingThoiTietVn() throws FileNotFoundException {
-		// 1. Connect Database Control
-//		connection = DbControlConnection.getIntance().getConnect();
-
 		sourceConfigDao = new SourceConfigDao();
 		sourceUrl = sourceConfigDao.getURL(SOURCE_ID);
 
@@ -63,6 +56,7 @@ public class FirstProcessingThoiTietVn {
 		fileName = dateFormatForFileName.format(currentDate);
 		extension = ".csv";
 		separator = ",";
+		
 		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
 
 		if (!folderExtract.exists()) {
@@ -72,26 +66,37 @@ public class FirstProcessingThoiTietVn {
 		path = folderExtract.getAbsolutePath() + File.separator + fileName + extension;
 		rawPath = folderExtract.getAbsolutePath() + File.separator + "raw_" + fileName + extension;
 
-		writer = new PrintWriter(new File(path));
-
 		destinationUrl = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName + "/" + fileName + extension;
 
 	}
 
 	public void execute() throws IOException {
-		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + currentDate);
+		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + fileName);
 		int logId = IdCreater.createIdByCurrentTime();
-		boolean isExtracted = log.IsExtracted(SOURCE_ID);
-		if (!isExtracted) {
-			log.insertRecord(logId, SOURCE_ID, destinationUrl);
+		String status = log.getStatus(SOURCE_ID);
+		switch (status) {
+		case "EO":
+			System.out.println("Result extract: This source has been extracted");
+			break;
+		case "ER", "EF":
 			try {
+				extract(logId);
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			break;
+		default:
+			try {
+				log.insertRecord(logId, SOURCE_ID, destinationUrl);
 				extract(logId);
 			} catch (SQLException e) {
 				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} else {
-			System.out.println("Result extract: This source has been extracted");
-
+			break;
 		}
 	}
 
@@ -102,6 +107,10 @@ public class FirstProcessingThoiTietVn {
 			// Mở file
 			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(path))));
 			rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawPath))));
+
+			SimpleDateFormat dt = new SimpleDateFormat("dd-MM-yy HH:mm");
+			String currentTimeStamp = dt.format(CurrentTimeStamp.timestamp);
+			writer.write(currentTimeStamp + "\n");
 
 			Document doc = Jsoup.connect(sourceUrl).get();
 			Elements provinces = doc.select(".megamenu a");
@@ -117,9 +126,7 @@ public class FirstProcessingThoiTietVn {
 					return false;
 				}
 				String provinceName = provinces.get(i).attr("title");
-				String currentDate = CurrentTimeStamp.getCurrentDate();
-				SimpleDateFormat dt = new SimpleDateFormat("HH:mm");
-				String currentTime = dt.format(CurrentTimeStamp.timestamp);
+
 				Element currentTemp = docItem.select(".current-temperature").first();
 				String currentTemperatureText = currentTemp.text();
 				String overViewText = docItem.select(".overview-caption-item.overview-caption-item-detail").text();
@@ -132,11 +139,10 @@ public class FirstProcessingThoiTietVn {
 				String stopPointText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text();
 				String uvIndexText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text();
 				String airQualityText = docItem.select(".air-api.air-active").text();//
-				rawWriter.write(id + separator + provinceName + separator + currentDate + separator + currentTime
-						+ separator + currentTemperatureText + separator + overViewText + separator + lowestTempText
-						+ separator + maximumText + separator + maximumText + separator + visionText + separator
-						+ windText + separator + stopPointText + separator + uvIndexText + separator + airQualityText
-						+ "\n");
+				rawWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
+						+ overViewText + separator + lowestTempText + separator + maximumText + separator + maximumText
+						+ separator + visionText + separator + windText + separator + stopPointText + separator
+						+ uvIndexText + separator + airQualityText + "\n");
 
 				// pretreatment
 				Integer currentTemperatureNum = Integer
@@ -152,11 +158,10 @@ public class FirstProcessingThoiTietVn {
 				Float uvIndexFloat = Float.parseFloat(uvIndexText);
 
 				// ghi file
-				writer.write(id + separator + provinceName + separator + currentDate + separator + currentTime
-						+ separator + currentTemperatureNum + separator + overViewText + separator
-						+ lowestTemperatureNum + separator + maximumTemperatureNum + separator + humidityFloat
-						+ separator + visionNum + separator + windFloat + separator + stopPointNum + separator
-						+ uvIndexFloat + separator + airQualityText + "\n");
+				writer.write(id + separator + provinceName + separator + currentTemperatureNum + separator
+						+ overViewText + separator + lowestTemperatureNum + separator + maximumTemperatureNum
+						+ separator + humidityFloat + separator + visionNum + separator + windFloat + separator
+						+ stopPointNum + separator + uvIndexFloat + separator + airQualityText + "\n");
 			}
 			rawWriter.flush();
 			writer.flush();
@@ -177,7 +182,6 @@ public class FirstProcessingThoiTietVn {
 		}
 		return result;
 	}
-
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessingThoiTietVn firstProcessing = new FirstProcessingThoiTietVn();
 		firstProcessing.execute();

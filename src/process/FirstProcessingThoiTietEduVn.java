@@ -10,6 +10,7 @@ import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -21,237 +22,164 @@ import org.jsoup.select.Elements;
 import dao.CurrentTimeStamp;
 import dao.IdCreater;
 import dao.Procedure;
+import dao.control.LogControllerDao;
 import dao.control.SourceConfigDao;
 import db.DbControlConnection;
 import ftp.FTPManager;
 
 public class FirstProcessingThoiTietEduVn {
 	private FTPManager ftpManager;
-	private Connection connection;
-
-	private CallableStatement callStmt;
-	private ResultSet rs;
-	private String procedure;
+	private LogControllerDao log;
 
 	private SourceConfigDao sourceConfigDao;
 	private static final int SOURCE_ID = 2;
 
-	private String sourceUrl;
-	private String fileName, rawFileName;
+	private String sourceUrl, destinationUrl;
+	private String fileName, extension, separator;
 	private String path, rawPath;
 
+	private PrintWriter writer, rawWriter;
+	private Date currentDate;
+
 	public FirstProcessingThoiTietEduVn() {
-		// 1. Connect Database Control
-		connection = DbControlConnection.getIntance().getConnect();
 		sourceConfigDao = new SourceConfigDao();
-		ftpManager = new FTPManager(SOURCE_ID);
 		sourceUrl = sourceConfigDao.getURL(SOURCE_ID);
-	}
 
-	public boolean runScript() throws SQLException, IOException {
-		// 1.1 Lấy một dòng dữ liệu trong log, kiểm tra source này đã được ghi vào ngày
-		// hôm nay và giờ hiện tại hay chưa?
-		int logId = 0;
-		String status = "";
-		procedure = Procedure.GET_ONE_ROW_FROM_LOG;
-		callStmt = connection.prepareCall(procedure);
-		callStmt.setInt(1, SOURCE_ID);
-		rs = callStmt.executeQuery();
-		boolean checkEmptyLog = rs.next();
-		if (!checkEmptyLog) {
-			// 1.1.1 Nếu chưa có dòng dữ liệu nào, ghi một log mới
-			logId = IdCreater.createIdByCurrentTime();
-			System.out.println("Ghi log source id: " + SOURCE_ID);
-			procedure = Procedure.INSERT_RECORD;
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, logId);
-			callStmt.setInt(2, SOURCE_ID);
-			callStmt.execute();
+		log = new LogControllerDao();
+		ftpManager = new FTPManager(SOURCE_ID);
 
-			return extract(logId);
-		} else {
-			status = rs.getString("status");
-			logId = rs.getInt("id");
-		}
-		// 1.1.2 Nếu đã tồn tại dữ liệu, kiểm tra trạng thái của dòng log này
-		switch (status) {
-		// Nếu EO -> Kết thúc luôn
-		case "EO":
-			System.out.println("Đã có dữ liệu vào thời điểm: " + CurrentTimeStamp.getCurrentTimeStamp());
-			return true;
-		// Nếu EF -> Cập nhật sang trạng thái ER -> extract
-		// Nếu ER -> extract
-		case "EF":
-			// Cập nhật sang trạng thái ER và thời gian bắt đầu extract là thời gian hiện
-			// tại
-			procedure = Procedure.UPDATE_STATUS;
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setString(1, "ER");
-			callStmt.setInt(2, logId);
-			callStmt.execute();
+		DateFormat dateFormatForFileName = new SimpleDateFormat("dd-MM-yyyy_HH");
+		currentDate = new Date();
+		fileName = dateFormatForFileName.format(currentDate);
+		extension = ".csv";
+		separator = ",";
 
-			procedure = Procedure.UPDATE_TIME_LOAD;
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, logId);
-			int hour = new Date().getHours();
-			callStmt.setInt(2, hour);
-			callStmt.execute();
-			// Kết quả extract
-			return extract(logId);
-		case "ER":
-			procedure = Procedure.UPDATE_TIME_LOAD;
-			callStmt = connection.prepareCall(procedure);
-			// 91061033
-			System.out.println(logId);
-			callStmt.setInt(1, logId);
-			hour = new Date().getHours();
-			callStmt.setInt(2, hour);
-			callStmt.execute();
-			// Kết quả extract
-			return extract(logId);
-		default:
-			System.out.println("Trường hợp chưa xác định!");
-			break;
-		}
-		return false;
-	}
+		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
 
-	private boolean extract(int logId) throws SQLException {
-		boolean result = false;
-		// 2.Extract data theo source id ở thời điểm hiện tại (theo logId)
-		System.out.println("Bắt đầu extract dữ liệu vào thời điểm: " + CurrentTimeStamp.getCurrentDate());
-		String ext = ".csv";
-
-		// 2.1 Tạo filename ở ngày và giờ hiện tại
-		fileName = CurrentTimeStamp.getCurrentTimeStamp() + ext;
-		rawFileName = "raw" + CurrentTimeStamp.getCurrentTimeStamp() + ext;
-		// 2.1.1 Kiểm tra folder đã tồn tại hay chưa, nếu chưa thì tạo mới
-		File folderExtract = new File(
-				sourceConfigDao.getPathFolder(SOURCE_ID) + File.separator + CurrentTimeStamp.getCurrentDate());
 		if (!folderExtract.exists()) {
-			System.out.println("Tạo mới folder chưa file dữ liệu đã extract!");
+			System.out.println("Create new folder: " + folderExtract.getName());
 			folderExtract.mkdirs();
 		}
-		// Lấy đường dẫn tuyệt đối của file cần ghi
-		path = folderExtract.getAbsolutePath() + File.separator + fileName;
-		rawPath = folderExtract.getAbsolutePath() + File.separator + rawFileName;
+		path = folderExtract.getAbsolutePath() + File.separator + fileName + extension;
+		rawPath = folderExtract.getAbsolutePath() + File.separator + "raw_" + fileName + extension;
 
+		destinationUrl = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName + "/" + fileName + extension;
+	}
+
+	public void execute() throws IOException {
+		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + fileName);
+		int logId = IdCreater.createIdByCurrentTime();
+		String status = log.getStatus(SOURCE_ID);
+		switch (status) {
+		case "EO":
+			System.out.println("Result extract: This source has been extracted");
+			break;
+		case "ER", "EF":
+			try {
+				extract(logId);
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			break;
+		default:
+			try {
+				log.insertRecord(logId, SOURCE_ID, destinationUrl);
+				extract(logId);
+			} catch (SQLException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			break;
+		}
+	}
+
+	private boolean extract(int logId) throws SQLException, IOException {
+		boolean result = false;
 		// 2.2 Tiến hành extract
-		PrintWriter writer = null, rawWriter = null;
 		try {
 			// Mở file
 			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(path))));
 			rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawPath))));
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 
-		Document root = null;
-		try {
-			root = Jsoup.connect(sourceUrl).get();
-			Elements provincesHTML = root.select("#child-item-childrens a");
-			for (int i = 0; i < provincesHTML.size(); i++) {
-				String currentDate = folderExtract.getName();
-				SimpleDateFormat dt = new SimpleDateFormat("HH:mm");
-				String currentTime = dt.format(CurrentTimeStamp.timestamp);
+			SimpleDateFormat dt = new SimpleDateFormat("dd-MM-yy HH:mm");
+			String currentTimeStamp = dt.format(CurrentTimeStamp.timestamp);
+			writer.write(currentTimeStamp + "\n");
+
+			Document doc = Jsoup.connect(sourceUrl).get();
+			Elements provinces = doc.select("#child-item-childrens a");
+			for (int i = 0; i < provinces.size(); i++) {
 				int id = IdCreater.generateUniqueId();
-				Document weatherEachProvince = Jsoup.connect(sourceUrl + provincesHTML.get(i).attr("href")).get();
-				String province = provincesHTML.get(i).text();
-				String currentTemperature = weatherEachProvince.selectFirst(".current-temperature").text();
-				String overview = weatherEachProvince.select(".overview-caption-item-detail").get(0).text();
-				Elements weatherDetails = weatherEachProvince.select(".weather-detail-location");
-				String lostestTemperature = weatherDetails.get(0).select("span").get(1).text().split("/")[0];
-				String highestTemperature = weatherDetails.get(0).select("span").get(1).text().split("/")[1];
-				String humidity = weatherDetails.get(1).select("span").get(2).text();
-				String vision = weatherDetails.get(2).select("span").get(1).text();
-				String wind = weatherDetails.get(3).select("span").get(1).text();
-				String stopPoint = weatherDetails.get(4).select("span").get(1).text();
-				Float uv = Float.parseFloat(weatherDetails.get(5).select("span").get(1).text());
-				String airQuality = weatherEachProvince.select(".air-api").text();
+				String dataURL = sourceUrl + provinces.get(i).attr("href");
+				Document docItem = null;
+				try {
+					docItem = Jsoup.connect(dataURL).get();
+				} catch (IOException e) {
+					e.printStackTrace();
+					return false;
+				}
+				String provinceName = provinces.get(i).attr("title");
 
-				int currentTemperatureNum = Integer
-						.parseInt(currentTemperature.substring(0, currentTemperature.length() - 1).trim());
-				int lostestTemperatureNum = Integer
-						.parseInt(lostestTemperature.substring(0, lostestTemperature.length() - 1).trim());
-				int highestTemperatureNum = Integer
-						.parseInt(highestTemperature.substring(0, highestTemperature.length() - 1).trim());
-				float humidityFloat = Float.parseFloat(humidity.split(" ")[0]) / 100.0f;
-				float visionNum = Float.parseFloat(vision.split(" ")[0]);
-				float windFloat = Float.parseFloat(wind.split(" ")[0]);
-				int stopPointNum = Integer.parseInt(stopPoint.split(" ")[0]);
-				writer.write(id + "," + province + "," + currentDate + "," + currentTime + "," + currentTemperatureNum
-						+ "," + overview + "," + lostestTemperatureNum +","+ highestTemperatureNum + "," + humidityFloat
-						+ "," + visionNum + "," + windFloat + "," + stopPointNum + "," + uv + "," + airQuality + "\n");
-				rawWriter.flush();
-				writer.flush();
+				Element currentTemp = docItem.select(".current-temperature").first();
+				String currentTemperatureText = currentTemp.text();
+				String overViewText = docItem.select(".overview-caption-item.overview-caption-item-detail").text();
+				String lowestTempText = docItem.select(".text-white.op-8.fw-bold:first-of-type").text().split("/")[0];
+				String maximumText = docItem.selectFirst(".weather-detail .text-white.op-8.fw-bold:first-child").text()
+						.split("/")[1];
+				String humidityText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(1).text();
+				String visionText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(2).text();
+				String windText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text();
+				String stopPointText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text();
+				String uvIndexText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text();
+				String airQualityText = docItem.select(".air-api.air-active").text();//
+				rawWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
+						+ overViewText + separator + lowestTempText + separator + maximumText + separator + maximumText
+						+ separator + visionText + separator + windText + separator + stopPointText + separator
+						+ uvIndexText + separator + airQualityText + "\n");
+
+				// pretreatment
+				Integer currentTemperatureNum = Integer
+						.parseInt(currentTemperatureText.substring(0, currentTemperatureText.length() - 1).trim());
+				Integer lowestTemperatureNum = Integer
+						.parseInt(lowestTempText.substring(0, lowestTempText.length() - 1).trim());
+				Integer maximumTemperatureNum = Integer
+						.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
+				Float humidityFloat = Float.parseFloat(humidityText.split("%")[0]) / 100.0f;
+				Float visionNum = Float.parseFloat(visionText.split(" ")[0]);
+				Float windFloat = Float.parseFloat(windText.split(" ")[0]);
+				Integer stopPointNum = Integer.parseInt(stopPointText.split(" ")[0]);
+				Float uvIndexFloat = Float.parseFloat(uvIndexText);
+
+				// ghi file
+				writer.write(id + separator + provinceName + separator + currentTemperatureNum + separator
+						+ overViewText + separator + lowestTemperatureNum + separator + maximumTemperatureNum
+						+ separator + humidityFloat + separator + visionNum + separator + windFloat + separator
+						+ stopPointNum + separator + uvIndexFloat + separator + airQualityText + "\n");
 			}
-			rawWriter.close();
-			writer.close();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		// 2.3 Kiểm tra kết quả extract
-		// 2.3.1 Lấy thông tin FTP server từ FTPConfig
-		// 2.3.2 Connect FTP server
+			rawWriter.flush();
+			writer.flush();
 
-		// 2.3.3 Extract dữ liệu thành công (đã có file trên ftp)
-		// 2.3.3.1 Upload file lên FTP server
-		String distFolder = sourceConfigDao.getDistFolder(SOURCE_ID);
-		try {
-			ftpManager.getClient().makeDirectory(distFolder);
-		} catch (IOException e) {
-			System.out.println("Không tạo được folder");
-			e.printStackTrace();
-			return false;
-		}
-		boolean isSuccess = false;
-		try {
-			isSuccess = ftpManager.pushFile(path, distFolder, fileName)
-					& ftpManager.pushFile(rawPath, distFolder, rawFileName);
-		} catch (IOException e) {
-			System.out.println("Không push được file");
+		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		// 2.3.3.1.1 Uploadfile thành công
-		if (isSuccess) {
-			// Cập nhật log với trạng thái 'EO'
-			procedure = Procedure.UPDATE_STATUS;
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setString(1, "EO");
-			callStmt.setInt(2, logId);
-			callStmt.execute();
-			System.out.println("Upload file thành công vào thư mục: " + distFolder);
+
+		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName)
+				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName)) {
+			log.updateStatus(logId, "EO");
 			result = true;
-			// ftpManager.listFolder(ftpManager.getClient(), disFolder);
-			// 2.3.3.1.2 Uploadfile không thành công
+			System.out.println("Extract result: EO");
 		} else {
-			// upload file không thành công
-			// Cập nhật log với trạng thái 'EF'
-			procedure = Procedure.UPDATE_STATUS;
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setString(1, "EF");
-			callStmt.setInt(2, logId);
-			callStmt.execute();
-			System.out.println("Upload file không thành công, hãy thử lại <3");
+			log.updateStatus(logId, "EF");
 			result = false;
+			System.out.println("Extract result: EF");
 		}
-		// 3. Close
-		// 3.1 Disconnect FTP
-		// 3.2 Close Database Control
-		ftpManager.close();
-		connection.close();
 		return result;
 	}
 
 	public static void main(String[] args) throws IOException, SQLException {
 		FirstProcessingThoiTietEduVn firstProcessing = new FirstProcessingThoiTietEduVn();
-		boolean result = firstProcessing.runScript();
-		if (result) {
-			System.out.println("Process 1: success!");
-		} else {
-			System.out.println("Process 1: try again!");
-		}
+		firstProcessing.execute();
 	}
 }

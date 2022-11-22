@@ -23,14 +23,17 @@ public class LogControllerDao {
 
 	// 1. Lấy một dòng dữ liệu trong log, kiểm tra source này đã được ghi vào ngày
 	// hôm nay và giờ hiện tại hay chưa?
-	public boolean IsExtracted(int id) {
-		boolean result = false;
+	public String getStatus(int id) {
+		String result = "";
 		procedure = Procedure.GET_ONE_FILE_IN_FTP;
 		try {
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, id);
 			rs = callStmt.executeQuery();
-			result = rs.next();
+			if (rs.next()) {
+				result = rs.getString("status");
+			}
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
