@@ -94,7 +94,7 @@ public class ThirdProcessing {
 								dateDimRs.getInt("hour"), 
 								dateDimRs.getInt("minute"), 
 								dateDimRs.getInt("second"), 
-								dateDimRs.getString("dayOfWeek")
+								dateDimRs.getString("day_of_week")
 								)
 				) System.out.println("Inserted 1 row to datawarehouse date dim");
 				else System.out.println("Error");
@@ -109,7 +109,7 @@ public class ThirdProcessing {
 		try {
 			while(provinceStaggingRs.next()) {
 				String id = provinceStaggingRs.getString("id");
-				String provinceName = provinceStaggingRs.getString("nameProvince");
+				String provinceName = provinceStaggingRs.getString("name_province");
 				
 				boolean exsistProvinceName = provinceDimDaoDatawarehouse.getIdByProvinceName(provinceName) != null;
 				
@@ -135,18 +135,18 @@ public class ThirdProcessing {
 				String naturalKey = weatherFactRs.getString("id");
 				String provinceId = provinceDimDaoDatawarehouse
 						.getIdByProvinceName(provinceDimDaoStagging
-								.getProvinceNameById(weatherFactRs.getString("provinceId")));
-				String dateId = weatherFactRs.getString("dateId");
-				int currentTemperature = weatherFactRs.getInt("currentTemperature");
-				int lowestTemperature = weatherFactRs.getInt("lowestTemperature");
-				int highestTemperature = weatherFactRs.getInt("highestTemperature");
+								.getProvinceNameById(weatherFactRs.getString("province_id")));
+				String dateId = weatherFactRs.getString("date_id");
+				int currentTemperature = weatherFactRs.getInt("current_temperature");
+				int lowestTemperature = weatherFactRs.getInt("lowest_temperature");
+				int highestTemperature = weatherFactRs.getInt("highest_temperature");
 				float humidity = weatherFactRs.getFloat("humidity");
 				String overview = weatherFactRs.getString("overView");
 				float wind = weatherFactRs.getFloat("wind");
 				float vision = weatherFactRs.getFloat("vision");
-				int stopPoint = weatherFactRs.getInt("stopPoint");
-				float uvIndex = weatherFactRs.getFloat("uvIndex");
-				String airQuality = weatherFactRs.getString("airQuality");
+				int stopPoint = weatherFactRs.getInt("stop_point");
+				float uvIndex = weatherFactRs.getFloat("uv_index");
+				String airQuality = weatherFactRs.getString("air_quality");
 
 				boolean inserted = weatherFaceDaoDatawarehouse
 						.insert(sk, naturalKey, provinceId, dateId, currentTemperature, 

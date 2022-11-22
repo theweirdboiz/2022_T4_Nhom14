@@ -49,6 +49,7 @@ public class FirstProcessingExtractThoiTietEduVN {
 		current = new Date(Calendar.getInstance().getTime().getTime() + 1900);
 		DateFormat dateFormatForFileName = new SimpleDateFormat("dd-MM-yyyy_hh-mm-ss");
 		fileName = SOURCE_ID + "_" + dateFormatForFileName.format(current);
+		System.out.println(sourceConfigDao.getPathFolder(SOURCE_ID));
 		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID));
 		if (!folderExtract.exists()) folderExtract.mkdir();
 		path = folderExtract.getAbsolutePath() + File.separator + fileName;

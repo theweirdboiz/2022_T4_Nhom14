@@ -39,7 +39,7 @@ public class SourceConfigDao {
 			ps = connection.prepareStatement(query);
 			ps.setInt(1, id);
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("pathFolder") : null;
+			return rs.next() ? rs.getString("path_folder") : null;
 		} catch (SQLException e) {
 			return null;
 		}
@@ -51,7 +51,7 @@ public class SourceConfigDao {
 			ps = connection.prepareStatement(query);
 			ps.setInt(1, id);
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("distFolder") : null;
+			return rs.next() ? rs.getString("dist_folder") : null;
 		} catch (SQLException e) {
 			return null;
 		}
@@ -63,7 +63,7 @@ public class SourceConfigDao {
 			ps = connection.prepareStatement(query);
 			ps.setInt(1, id);
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("timeLoad") : null;
+			return rs.next() ? rs.getString("time_load") : null;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;
@@ -96,7 +96,7 @@ public class SourceConfigDao {
 			ps = connection.prepareStatement(query);
 			ps.setString(1, id);
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("pathFolder") : null;
+			return rs.next() ? rs.getString("path_folder") : null;
 		} catch (SQLException e) {
 			return null;
 		}
@@ -108,7 +108,7 @@ public class SourceConfigDao {
 			ps = connection.prepareStatement(query);
 			ps.setString(1, id);
 			rs = ps.executeQuery();
-			return rs.next() ? rs.getString("distFolder") : null;
+			return rs.next() ? rs.getString("dist_folder") : null;
 		} catch (SQLException e) {
 			return null;
 		}

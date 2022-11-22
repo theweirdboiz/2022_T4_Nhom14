@@ -51,7 +51,7 @@ public class ProvinceDimDao {
 			statement = connection.prepareStatement(query);
 			statement.setString(1, id);
 			ResultSet rs = statement.executeQuery();
-			return rs.next() ? rs.getString("nameProvince") : null;
+			return rs.next() ? rs.getString("name_province") : null;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;
