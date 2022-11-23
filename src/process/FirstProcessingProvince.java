@@ -65,7 +65,7 @@ public class FirstProcessingProvince {
 	public void execute() throws IOException {
 		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + fileName);
 		int logId = IdCreater.createIdByCurrentTime();
-		String status = log.getStatus(SOURCE_ID);
+		String status = log.getFileStatus(SOURCE_ID);
 		switch (status) {
 		case "EO":
 			System.out.println("Result extract: This source has been extracted");
@@ -126,8 +126,9 @@ public class FirstProcessingProvince {
 			e.printStackTrace();
 		}
 
-		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName)
-				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName)) {
+		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName + extension)
+				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName,
+						fileName + extension)) {
 			log.updateStatus(logId, "EO");
 			result = true;
 			System.out.println("Extract result: EO");

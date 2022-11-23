@@ -17,17 +17,23 @@ import java.util.StringTokenizer;
 
 import dao.Procedure;
 import dao.control.DbConfigDao;
+import db.DbStagingControlConnection;
 import db.MySQLConnection;
 import model.DbHosting;
 
 public class TimeDimdao {
 	public static final String OUT_FILE = "time_dim.csv";
-	public static final int HOUR = 24;
-	public static final int MINUTE = 60;
-	public static final int SECOND = 60;
-
+	public static final int NUMBER_OF_RECORD = 5432;
 	public static final String TIME_ZONE = "PST8PDT";
 	public File file = new File(OUT_FILE);
+
+	private Connection connection;
+	private CallableStatement callStmt;
+	private String procedure;
+
+	public TimeDimdao() {
+		connection = DbStagingControlConnection.getIntance().getConnect();
+	}
 
 	private boolean createFile() throws FileNotFoundException {
 		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file)));
@@ -40,52 +46,52 @@ public class TimeDimdao {
 		writer.flush();
 		return file.length() > 0;
 	}
-
-	public boolean create() throws NumberFormatException, IOException, SQLException {
-		DbConfigDao dbConfigDao = new DbConfigDao();
-		DbHosting dbHosting = dbConfigDao.getStagingHosting();
-		Connection connection = new MySQLConnection(dbHosting).getConnect();
+	public boolean getAll() throws SQLException {
+		procedure = Procedure.CHECK_TIME_DIM_IS_EXISTED;
 		boolean result = false;
-		// Kiểm tra datedim đã tồn tại trong staging chưa?
-		String procedure = Procedure.CHECK_TIME_DIM_IS_EXISTED;
-		boolean checkIsExisted = false;
 		try {
-			CallableStatement callStmt = connection.prepareCall(procedure);
-			ResultSet rs = callStmt.executeQuery();
-			checkIsExisted = rs.next();
-			// Nếu đã tồn tại thì kết thúc luôn
-			if (checkIsExisted) {
-				System.out.println("Timedim has been existed!");
-				return true;
-			}
-			// Nếu chưa tạo mới rồi insert vào staging
-			if (!createFile()) {
-				System.out.println("Can't create file timedim.csv");
-				return false;
-			}
-			BufferedReader lineReader = new BufferedReader(new FileReader(file));
-			String lineText = null;
-			while ((lineText = lineReader.readLine()) != null) {
-				StringTokenizer stk = new StringTokenizer(lineText, ",");
-				procedure = Procedure.LOAD_TIME_DIM;
-				callStmt = connection.prepareCall(procedure);
-				callStmt.setInt(1, Integer.parseInt(stk.nextToken()));
-				callStmt.setString(2, stk.nextToken());
-				result = callStmt.executeUpdate() > 0;
-			}
-			lineReader.close();
+			callStmt = connection.prepareCall(procedure);
+			result = callStmt.executeQuery().next();
 		} catch (SQLException e) {
-			System.out.println("Can't create datedim!");
 			e.printStackTrace();
 		}
-		connection.close();
 		return result;
+	}
+	public boolean insert() throws SQLException, NumberFormatException, FileNotFoundException, IOException {
+		String line;
+		boolean result = false;
+		if (getAll()) {
+			System.out.println("Timedim has been loaded into staging!");
+			return true;
+		}
+		if (createFile()) {
+			try {
+				BufferedReader br = new BufferedReader(new FileReader(new File(OUT_FILE)));
+				while ((line = br.readLine()) != null) {
+					String[] elms = line.split(",");
+					procedure = Procedure.LOAD_DATE_DIM;
+					callStmt = connection.prepareCall(procedure);
+					callStmt.setInt(1, Integer.parseInt(elms[0].trim()));
+					callStmt.setString(2, elms[1].trim());
+					callStmt.setInt(3, Integer.parseInt(elms[2].trim()));
+					callStmt.setInt(4, Integer.parseInt(elms[3].trim()));
+					callStmt.setInt(5, Integer.parseInt(elms[4].trim()));
+					callStmt.setString(6, elms[5].trim());
+					result = callStmt.executeUpdate() > 0;
+				}
+				br.close();
+				return result;
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+		if (result) {
+			System.out.println("Timedim load into staging successfully!");
+		}
+		return false;
 	}
 
 	public static void main(String[] args) throws NumberFormatException, IOException, SQLException {
-		TimeDimdao dao = new TimeDimdao();
-		if (dao.create()) {
-			System.out.println("Create timedim successful!");
-		}
+		
 	}
 }

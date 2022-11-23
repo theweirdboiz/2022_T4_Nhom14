@@ -23,7 +23,7 @@ public class LogControllerDao {
 
 	// 1. Lấy một dòng dữ liệu trong log, kiểm tra source này đã được ghi vào ngày
 	// hôm nay và giờ hiện tại hay chưa?
-	public String getStatus(int id) {
+	public String getFileStatus(int id) {
 		String result = "";
 		procedure = Procedure.GET_ONE_FILE_IN_FTP;
 		try {
@@ -58,6 +58,19 @@ public class LogControllerDao {
 		return false;
 	}
 
+	public String getDestinationByStatus(int sourceId) {
+		try {
+			procedure = Procedure.GET_ONE_FILE_IN_FTP;
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, sourceId);
+			ResultSet rs = callStmt.executeQuery();
+			return rs.next() ? rs.getString("destination") : null;
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	public void updateStatus(int logId, String status) {
 		try {
 			procedure = Procedure.UPDATE_STATUS;
@@ -70,9 +83,27 @@ public class LogControllerDao {
 		}
 	}
 
+//Staging
+	public int getIdByStatus(int sourceId, String status) {
+		int id = 0;
+		try {
+			procedure = Procedure.GET_ONE_ROW_INFO;
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, sourceId);
+			callStmt.setString(2, status);
+			ResultSet rs = callStmt.executeQuery();
+			if (rs.next()) {
+				return rs.getInt("id");
+			} else {
+				System.out.println("vcl");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return id;
+	}
+
 	public static void main(String[] args) {
 		LogControllerDao logControllerDao = new LogControllerDao();
-		logControllerDao.insertRecord(0, 0, null);
-//		logControllerDao.checkSourceIsExtracted(1);;
 	}
 }

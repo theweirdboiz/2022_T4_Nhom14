@@ -35,7 +35,7 @@ public class FirstProcessingThoiTietEduVn {
 	private static final int SOURCE_ID = 2;
 
 	private String sourceUrl, destinationUrl;
-	private String fileName, extension, separator;
+	private String fileName, rawFileName, extension, separator;
 	private String path, rawPath;
 
 	private PrintWriter writer, rawWriter;
@@ -51,8 +51,10 @@ public class FirstProcessingThoiTietEduVn {
 		DateFormat dateFormatForFileName = new SimpleDateFormat("dd-MM-yyyy_HH");
 		currentDate = new Date();
 		fileName = dateFormatForFileName.format(currentDate);
+		rawFileName = "raw_" + dateFormatForFileName.format(currentDate);
+
 		extension = ".csv";
-		separator = ",";
+		separator = ", ";
 
 		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
 
@@ -61,15 +63,16 @@ public class FirstProcessingThoiTietEduVn {
 			folderExtract.mkdirs();
 		}
 		path = folderExtract.getAbsolutePath() + File.separator + fileName + extension;
-		rawPath = folderExtract.getAbsolutePath() + File.separator + "raw_" + fileName + extension;
+		rawPath = folderExtract.getAbsolutePath() + File.separator + rawFileName + extension;
 
 		destinationUrl = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName + "/" + fileName + extension;
+
 	}
 
 	public void execute() throws IOException {
 		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + fileName);
 		int logId = IdCreater.createIdByCurrentTime();
-		String status = log.getStatus(SOURCE_ID);
+		String status = log.getFileStatus(SOURCE_ID);
 		switch (status) {
 		case "EO":
 			System.out.println("Result extract: This source has been extracted");
@@ -106,7 +109,9 @@ public class FirstProcessingThoiTietEduVn {
 
 			SimpleDateFormat dt = new SimpleDateFormat("dd-MM-yy HH:mm");
 			String currentTimeStamp = dt.format(CurrentTimeStamp.timestamp);
-			writer.write(currentTimeStamp + "\n");
+
+			writer.println(currentTimeStamp);
+			rawWriter.println(currentTimeStamp);
 
 			Document doc = Jsoup.connect(sourceUrl).get();
 			Elements provinces = doc.select("#child-item-childrens a");
@@ -133,19 +138,19 @@ public class FirstProcessingThoiTietEduVn {
 				String windText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(3).text();
 				String stopPointText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(4).text();
 				String uvIndexText = docItem.select(".weather-detail .text-white.op-8.fw-bold").get(5).text();
-				String airQualityText = docItem.select(".air-api.air-active").text();//
+				String airQualityText = docItem.select(".air-api.air-active").text();
+
 				rawWriter.write(id + separator + provinceName + separator + currentTemperatureText + separator
 						+ overViewText + separator + lowestTempText + separator + maximumText + separator + maximumText
 						+ separator + visionText + separator + windText + separator + stopPointText + separator
 						+ uvIndexText + separator + airQualityText + "\n");
 
 				// pretreatment
-				Integer currentTemperatureNum = Integer
+				int currentTemperatureNum = Integer
 						.parseInt(currentTemperatureText.substring(0, currentTemperatureText.length() - 1).trim());
-				Integer lowestTemperatureNum = Integer
+				int lowestTemperatureNum = Integer
 						.parseInt(lowestTempText.substring(0, lowestTempText.length() - 1).trim());
-				Integer maximumTemperatureNum = Integer
-						.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
+				int maximumTemperatureNum = Integer.parseInt(maximumText.substring(0, maximumText.length() - 1).trim());
 				Float humidityFloat = Float.parseFloat(humidityText.split("%")[0]) / 100.0f;
 				Float visionNum = Float.parseFloat(visionText.split(" ")[0]);
 				Float windFloat = Float.parseFloat(windText.split(" ")[0]);
@@ -165,8 +170,9 @@ public class FirstProcessingThoiTietEduVn {
 			e.printStackTrace();
 		}
 
-		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName)
-				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName)) {
+		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName + extension)
+				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + rawFileName,
+						rawFileName + extension)) {
 			log.updateStatus(logId, "EO");
 			result = true;
 			System.out.println("Extract result: EO");

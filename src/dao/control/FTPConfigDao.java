@@ -25,12 +25,29 @@ public class FTPConfigDao {
 		connection = DbControlConnection.getIntance().getConnect();
 	}
 
+	public FTPHosting getFTPHosting() {
+		FTPHosting ftpHosting = null;
+		try {
+			query = Procedure.GET_FTP_HOSTING;
+			statement = connection.prepareCall(query);
+			statement.setInt(1, 1);
+			ResultSet result = statement.executeQuery();
+			if (result.next()) {
+				ftpHosting = new FTPHosting(result.getString("host"), result.getInt("port"),
+						result.getString("username"), result.getString("password"));
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		return ftpHosting;
+	}
+
 	public FTPHosting getFTPHosting(int sourceId) {
 		FTPHosting ftpHosting = null;
 		try {
 			query = Procedure.GET_FTP_HOSTING;
 			statement = connection.prepareCall(query);
-			statement.setInt(1,sourceId );
+			statement.setInt(1, sourceId);
 			ResultSet result = statement.executeQuery();
 
 			if (result.next()) {
@@ -45,7 +62,6 @@ public class FTPConfigDao {
 
 	public static void main(String[] args) {
 //		FTPHosting ftpHosting = new 
-
 
 	}
 }

@@ -10,13 +10,14 @@ public interface Procedure {
 	String GET_FTP_HOSTING = "{CALL GET_FTP_HOSTING(?)}";
 
 	// process1
-	String GET_ONE_ROW_FROM_LOG = "{CALL GET_ONE_ROW_FROM_LOG(?)}";
+//	String GET_ONE_ROW_FROM_LOG = "{CALL GET_ONE_ROW_FROM_LOG(?)}";
+	String GET_ONE_FILE_IN_FTP = "{CALL GET_ONE_FILE_IN_FTP(?)}";
 	String INSERT_RECORD = "{CALL INSERT_RECORD(?,?,?,?)}";
 	String UPDATE_STATUS = "{CALL UPDATE_STATUS(?,?)}";
 	String UPDATE_TIME_LOAD = "{CALL UPDATE_TIME_LOAD(?,?)}";
 
 	// process2
-	String GET_ONE_FILE_IN_FTP = "{CALL GET_ONE_FILE_IN_FTP(?)}";
+	String GET_ONE_ROW_INFO = "{CALL GET_ONE_ROW_INFO(?,?)}";
 	String LOAD_RAW_WEATHER_DATA_INTO_STAGING = "{CALL LOAD_RAW_WEATHER_DATA_INTO_STAGING(?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
 	String TRANSFORM_WEATHER_FACT = "{CALL TRANSFORM_WEATHER_FACT(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
 
@@ -29,6 +30,5 @@ public interface Procedure {
 //	process 3
 	String GET_ALL_CURRENT_WEATHER_DATA = "{CALL GET_ALL_CURRENT_WEATHER_DATA()}";
 	String INSERT_ALL_FROM_STAGING = "{CALL INSERT_ALL_FROM_STAGING()}";
-
 
 }
