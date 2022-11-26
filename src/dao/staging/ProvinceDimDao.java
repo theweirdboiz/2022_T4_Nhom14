@@ -30,12 +30,40 @@ public class ProvinceDimDao {
 		connection = DbStagingControlConnection.getIntance().getConnect();
 	}
 
+	public boolean loadByLine(int id, String name) {
+		boolean result = false;
+		procedure = Procedure.LOAD_PROVINCE_DIM;
+		try {
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, id);
+			callStmt.setString(2, name);
+			result = callStmt.executeUpdate() > 0;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return result;
+	}
+
 	public boolean checkInFTP() throws SQLException {
 		connection = DbControlConnection.getIntance().getConnect();
 		procedure = Procedure.GET_ONE_FILE_IN_FTP;
 		callStmt = connection.prepareCall(procedure);
 		callStmt.setInt(1, sourceId);
 		return callStmt.execute();
+	}
+
+	public ResultSet getAll() {
+		connection = DbStagingControlConnection.getIntance().getConnect();
+		procedure = Procedure.GET_ALL_PROVINCEDIM_IN_STAGING;
+		try {
+			callStmt = connection.prepareCall(procedure);
+			return callStmt.executeQuery();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 	public boolean insert(String line) {

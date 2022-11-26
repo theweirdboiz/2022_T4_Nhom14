@@ -79,7 +79,7 @@ public class FTPManager {
 
 	public static void main(String[] args) throws IOException {
 		FTPManager ftpManager = new FTPManager(3);
-		ftpManager.listFolder(ftpClient, "weather_extract_1/22-11-2022_22");
+		ftpManager.listFolder(ftpClient, " province_extract/2022-11-26");
 //		ft
 	}
 }

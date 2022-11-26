@@ -1,4 +1,4 @@
-package dao.staging;
+package dao.warehouse;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.sql.CallableStatement;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 
@@ -27,56 +26,66 @@ import db.DbStagingControlConnection;
 
 public class DateDimDao {
 	public static final String OUT_FILE = "date_dim.csv";
-	public static final int NUMBER_OF_RECORD = 9876;
+	public static final int NUMBER_OF_RECORD = 5432;
 	public static final String TIME_ZONE = "PST8PDT";
 	public File file = new File(OUT_FILE);
-
-	private static final int SOURCE_ID = 4;
 
 	private Connection connection;
 	private CallableStatement callStmt;
 	private String procedure;
-	private ResultSet rs;
 
 	public DateDimDao() {
 		connection = DbStagingControlConnection.getIntance().getConnect();
 	}
 
-	public boolean isDateDimExisted() {
+	public boolean getAll() throws SQLException {
+		procedure = Procedure.CHECK_DATE_DIM_IS_EXISTED;
 		boolean result = false;
 		try {
-			System.out.println(">> Start: check date dim is existed");
-			procedure = Procedure.CHECK_DATE_DIM_IS_EXISTED;
 			callStmt = connection.prepareCall(procedure);
-			rs = callStmt.executeQuery();
-			result = rs.next();
+			result = callStmt.executeQuery().next();
 		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		System.out.println(">> End: " + result);
-		return result;
-	}
-
-	public boolean loadByLine(int id, String date, int year, int month, int day, String dayOfWeek) {
-		boolean result = false;
-		procedure = Procedure.LOAD_DATE_DIM;
-		try {
-			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, id);
-			callStmt.setString(2, date);
-			callStmt.setInt(3, year);
-			callStmt.setInt(4, month);
-			callStmt.setInt(5, day);
-			callStmt.setString(6, dayOfWeek);
-			result = callStmt.executeUpdate() > 0;
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return result;
 	}
 
-	public boolean createFile() {
+	public boolean insert() throws IOException, SQLException {
+		String line;
+		boolean result = false;
+		if (getAll()) {
+			System.out.println("Datedim has been loaded into staging!");
+			return true;
+		}
+		if (createFile()) {
+			try {
+				BufferedReader br = new BufferedReader(new FileReader(new File(OUT_FILE)));
+				while ((line = br.readLine()) != null) {
+					String[] elms = line.split(",");
+					procedure = Procedure.LOAD_DATE_DIM;
+					callStmt = connection.prepareCall(procedure);
+					callStmt.setInt(1, Integer.parseInt(elms[0].trim()));
+					callStmt.setString(2, elms[1].trim());
+					callStmt.setInt(3, Integer.parseInt(elms[2].trim()));
+					callStmt.setInt(4, Integer.parseInt(elms[3].trim()));
+					callStmt.setInt(5, Integer.parseInt(elms[4].trim()));
+					callStmt.setString(6, elms[5].trim());
+					result = callStmt.executeUpdate() > 0;
+				}
+				br.close();
+				return result;
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+		if (result) {
+			System.out.println("Datedim load into staging successfully!");
+		}
+		return false;
+
+	}
+
+	private boolean createFile() {
 		DateTimeZone dateTimeZone = DateTimeZone.forID(TIME_ZONE);
 		int count = 0;
 		int date_sk = 0;
@@ -119,6 +128,6 @@ public class DateDimDao {
 	}
 
 	public static void main(String[] args) throws NumberFormatException, IOException, SQLException {
-		DateDimDao dateDimDao = new DateDimDao();
+
 	}
 }

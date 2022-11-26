@@ -30,68 +30,62 @@ public class TimeDimdao {
 	private Connection connection;
 	private CallableStatement callStmt;
 	private String procedure;
+	private ResultSet rs;
 
 	public TimeDimdao() {
 		connection = DbStagingControlConnection.getIntance().getConnect();
 	}
 
-	private boolean createFile() throws FileNotFoundException {
-		PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file)));
-		int count = 1;
-		for (int i = 0; i < 24; i++) {
-			for (int j = 0; j < 60; j++) {
-				writer.println(count++ + "," + (i + ":" + j));
-			}
-		}
-		writer.flush();
-		return file.length() > 0;
-	}
-	public boolean getAll() throws SQLException {
-		procedure = Procedure.CHECK_TIME_DIM_IS_EXISTED;
+	public boolean isTimeDimExisted() {
 		boolean result = false;
 		try {
+			System.out.println(">> Start: check time dim is existed");
+			procedure = Procedure.CHECK_TIME_DIM_IS_EXISTED;
 			callStmt = connection.prepareCall(procedure);
-			result = callStmt.executeQuery().next();
+			rs = callStmt.executeQuery();
+			result = rs.next();
 		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		System.out.println(">> End: " + result);
+		return result;
+	}
+
+	public boolean loadByLine(int id, String name) {
+		boolean result = false;
+		procedure = Procedure.LOAD_TIME_DIM;
+		try {
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, id);
+			callStmt.setString(2, name);
+
+			result = callStmt.executeUpdate() > 0;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return result;
 	}
-	public boolean insert() throws SQLException, NumberFormatException, FileNotFoundException, IOException {
-		String line;
-		boolean result = false;
-		if (getAll()) {
-			System.out.println("Timedim has been loaded into staging!");
-			return true;
-		}
-		if (createFile()) {
-			try {
-				BufferedReader br = new BufferedReader(new FileReader(new File(OUT_FILE)));
-				while ((line = br.readLine()) != null) {
-					String[] elms = line.split(",");
-					procedure = Procedure.LOAD_DATE_DIM;
-					callStmt = connection.prepareCall(procedure);
-					callStmt.setInt(1, Integer.parseInt(elms[0].trim()));
-					callStmt.setString(2, elms[1].trim());
-					callStmt.setInt(3, Integer.parseInt(elms[2].trim()));
-					callStmt.setInt(4, Integer.parseInt(elms[3].trim()));
-					callStmt.setInt(5, Integer.parseInt(elms[4].trim()));
-					callStmt.setString(6, elms[5].trim());
-					result = callStmt.executeUpdate() > 0;
+
+	public boolean createFile() {
+		PrintWriter writer;
+		try {
+			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file)));
+			int count = 1;
+			for (int i = 0; i < 24; i++) {
+				for (int j = 0; j < 60; j++) {
+					writer.println(count++ + "," + (i + ":" + j));
 				}
-				br.close();
-				return result;
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
 			}
+			writer.flush();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		if (result) {
-			System.out.println("Timedim load into staging successfully!");
-		}
-		return false;
+		return file.length() > 0;
 	}
 
 	public static void main(String[] args) throws NumberFormatException, IOException, SQLException {
-		
+
 	}
 }

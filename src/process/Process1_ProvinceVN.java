@@ -23,21 +23,22 @@ import dao.control.LogControllerDao;
 import dao.control.SourceConfigDao;
 import ftp.FTPManager;
 
-public class FirstProcessingProvince {
+public class Process1_ProvinceVN {
 	private FTPManager ftpManager;
 	private LogControllerDao log;
 
 	private SourceConfigDao sourceConfigDao;
 	private static final int SOURCE_ID = 3;
 
-	private String sourceUrl, destinationUrl;
-	private String fileName, extension, separator;
+	private String sourceUrl, ftpPath, localPath, rawFtpPath, rawLocalPath;
+	private String fileName, rawFileName, extension, separator;
 	private String path, rawPath;
 
 	private PrintWriter writer, rawWriter;
 	private Date currentDate;
+	private File localFolder;
 
-	public FirstProcessingProvince() {
+	public Process1_ProvinceVN() {
 		sourceConfigDao = new SourceConfigDao();
 		sourceUrl = sourceConfigDao.getURL(SOURCE_ID);
 
@@ -47,28 +48,30 @@ public class FirstProcessingProvince {
 		DateFormat dateFormatForFileName = new SimpleDateFormat("dd-MM-yyyy_HH");
 		currentDate = new Date();
 		fileName = dateFormatForFileName.format(currentDate);
+		rawFileName = "raw_" + fileName;
 		extension = ".csv";
 		separator = ",";
 
-		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
+		localFolder = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
 
-		if (!folderExtract.exists()) {
-			System.out.println("Create new folder: " + folderExtract.getName());
-			folderExtract.mkdirs();
+		if (!localFolder.exists()) {
+			System.out.println("Create new folder: " + localFolder.getName());
+			localFolder.mkdirs();
 		}
-		path = folderExtract.getAbsolutePath() + File.separator + fileName + extension;
-		rawPath = folderExtract.getAbsolutePath() + File.separator + "raw_" + fileName + extension;
+		ftpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
+		rawFtpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
 
-		destinationUrl = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName + "/" + fileName + extension;
+		localPath = localFolder.getPath() + File.separator + fileName + extension;
+		rawLocalPath = localFolder.getPath() + File.separator + "raw_" + fileName + extension;
 	}
 
 	public void execute() throws IOException {
-		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + fileName);
+		System.out.println(">> Start: extract source_id: " + SOURCE_ID + "\tat time: " + fileName);
 		int logId = IdCreater.createIdByCurrentTime();
 		String status = log.getFileStatus(SOURCE_ID);
 		switch (status) {
 		case "EO":
-			System.out.println("Result extract: This source has been extracted");
+			System.out.println(">> End: this source_id has been extracted");
 			break;
 		case "ER", "EF":
 			try {
@@ -82,7 +85,7 @@ public class FirstProcessingProvince {
 			break;
 		default:
 			try {
-				log.insertRecord(logId, SOURCE_ID, destinationUrl);
+				log.insertRecord(logId, SOURCE_ID, localPath, ftpPath);
 				extract(logId);
 			} catch (SQLException e) {
 				log.updateStatus(logId, "EF");
@@ -101,12 +104,11 @@ public class FirstProcessingProvince {
 		// 2.2 Tiến hành extract
 		try {
 			// Mở file
-			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(path))));
-			rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawPath))));
+			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(localPath))));
+			rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawLocalPath))));
 
 			SimpleDateFormat dt = new SimpleDateFormat("dd-MM-yy HH:mm");
 			String currentTimeStamp = dt.format(CurrentTimeStamp.timestamp);
-			writer.write(currentTimeStamp + "\n");
 
 			Document doc = Jsoup.connect(sourceUrl).get();
 			Element provinceTable = doc.selectFirst("table");
@@ -114,7 +116,7 @@ public class FirstProcessingProvince {
 			for (int i = 1; i < rows.size(); i++) {
 				String rowOut = i + ",";
 				Elements row = rows.get(i).select("td");
-				rowOut += row.get(1).text();
+				rowOut += row.get(1).text() + "," + currentTimeStamp;
 				writer.println(rowOut);
 				rawWriter.println(rowOut);
 			}
@@ -126,22 +128,21 @@ public class FirstProcessingProvince {
 			e.printStackTrace();
 		}
 
-		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName + extension)
-				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName,
-						fileName + extension)) {
+		if (ftpManager.pushFile(localPath, ftpPath, fileName + extension)
+				&& ftpManager.pushFile(rawLocalPath, rawFtpPath, rawFileName + extension)) {
 			log.updateStatus(logId, "EO");
 			result = true;
-			System.out.println("Extract result: EO");
+			System.out.println(">> End: extract result: EO");
 		} else {
 			log.updateStatus(logId, "EF");
 			result = false;
-			System.out.println("Extract result: EF");
+			System.out.println(">> End: extract result: EF");
 		}
 		return result;
 	}
 
 	public static void main(String[] args) throws IOException {
-		FirstProcessingProvince firstProcessingProvince = new FirstProcessingProvince();
+		Process1_ProvinceVN firstProcessingProvince = new Process1_ProvinceVN();
 		firstProcessingProvince.execute();
 	}
 

@@ -16,7 +16,6 @@ import ftp.FTPManager;
 
 public class RawWeatherFactDao {
 	private static final int SOURCE_VN_ID = 1;
-
 	private static final int SOURCE_VN_EDU_ID = 2;
 	Connection connection;
 	String procedure;
@@ -31,9 +30,11 @@ public class RawWeatherFactDao {
 		connection = DbStagingControlConnection.getIntance().getConnect();
 	}
 
-	public boolean loadRawThoiTietVnFact() {
+	public boolean loadFileThoiTietVN() {
 		ftpManager = new FTPManager(SOURCE_VN_ID);
 		boolean result = false;
+		procedure = "LOAD DATA LOCAL INFILE ? INTO TABLE  staging.raw_weather_data FIELDS TERMINATED BY ' ' LINES TERMINATED BY '\\n'";
+
 		try {
 			int logId = log.getIdByStatus(SOURCE_VN_ID, "EO");
 			String path = log.getDestinationByStatus(SOURCE_VN_ID);

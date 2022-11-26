@@ -14,10 +14,11 @@ public class MySQLConnection implements IConnection {
 
 	public MySQLConnection(String url, String username, String password) {
 		try {
-			System.out.println("Connecting database control...");
+			System.out.println("Connecting database control");
 			Class.forName(DATABASE_DRIVER);
 			connection = DriverManager.getConnection(url, username, password);
 			System.out.println("Connected!");
+			System.out.println("---------------------------------------------");
 		} catch (ClassNotFoundException | SQLException e) {
 			e.printStackTrace();
 		}
@@ -30,6 +31,7 @@ public class MySQLConnection implements IConnection {
 			connection = DriverManager.getConnection(dbHosting.getUrl(), dbHosting.getUserName(),
 					dbHosting.getPassword());
 			System.out.println("Connected!");
+			System.out.println("---------------------------------------------");
 		} catch (ClassNotFoundException | SQLException e) {
 			e.printStackTrace();
 		}
