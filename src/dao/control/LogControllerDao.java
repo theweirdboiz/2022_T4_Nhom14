@@ -20,6 +20,36 @@ public class LogControllerDao {
 
 	// 1. Lấy một dòng dữ liệu trong log, kiểm tra source này đã được ghi vào ngày
 	// hôm nay và giờ hiện tại hay chưa?
+
+	public ResultSet getOneRowInformation(int sourceId) {
+		procedure = Procedure.GET_ONE_ROW_INFO;
+		try {
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, sourceId);
+			return callStmt.executeQuery();
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	public boolean checkIsFileLoaded(int logId, String timeLoad) {
+		boolean result = false;
+		procedure = Procedure.CHECK_IS_FILE_LOADED;
+		try {
+			callStmt = connection.prepareCall(procedure);
+			callStmt.setInt(1, logId);
+			callStmt.setString(2, timeLoad);
+			rs = callStmt.executeQuery();
+			result = rs.next();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return result;
+	}
+
 	public int getLogId() {
 		procedure = Procedure.GET_LOG_ID;
 		Integer logId = null;
@@ -35,21 +65,22 @@ public class LogControllerDao {
 		return logId;
 	}
 
-	public String getDestinationByLogId(int logId) {
-		String destination = null;
-		procedure = Procedure.GET_DESTINATION_BY_LOG_ID;
+	public String getTimeLoad(int logId) {
+		String timeLoad = null;
+		procedure = Procedure.GET_TIME_LOAD_BY_LOG_ID;
 		try {
 			callStmt = connection.prepareCall(procedure);
 			callStmt.setInt(1, logId);
 			rs = callStmt.executeQuery();
 			if (rs.next()) {
-				destination = rs.getString("destination");
+				timeLoad = rs.getString("timeLoad");
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		return destination;
+		return timeLoad;
+
 	}
 
 	public int getSourceIdByLogId(int logId) {

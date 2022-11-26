@@ -22,10 +22,8 @@ import org.jsoup.select.Elements;
 
 import dao.CurrentTimeStamp;
 import dao.IdCreater;
-import dao.Procedure;
 import dao.control.LogControllerDao;
 import dao.control.SourceConfigDao;
-import db.DbControlConnection;
 
 import ftp.FTPManager;
 
@@ -37,14 +35,14 @@ public class Process1_ThoiTietVN {
 	private SourceConfigDao sourceConfigDao;
 	private static final int SOURCE_ID = 1;
 
-	private String sourceUrl, destinationUrl;
+	private String sourceUrl, ftpPath, localPath, rawFtpPath, rawLocalPath;
 	private String fileName, rawFileName, extension, separator;
-	private String path, rawPath;
 
 	private PrintWriter writer, rawWriter;
 	private Date currentDate;
+	private File localFolder;
 
-	public Process1_ThoiTietVN() throws FileNotFoundException {
+	public Process1_ThoiTietVN() {
 		sourceConfigDao = new SourceConfigDao();
 		sourceUrl = sourceConfigDao.getURL(SOURCE_ID);
 
@@ -59,47 +57,49 @@ public class Process1_ThoiTietVN {
 		extension = ".csv";
 		separator = ", ";
 
-		File folderExtract = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
+		localFolder = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
 
-		if (!folderExtract.exists()) {
-			System.out.println("Create new folder: " + folderExtract.getName());
-			folderExtract.mkdirs();
+		if (!localFolder.exists()) {
+			System.out.println("Create new folder: " + localFolder.getName());
+			localFolder.mkdirs();
 		}
-		path = folderExtract.getAbsolutePath() + File.separator + fileName + extension;
-		rawPath = folderExtract.getAbsolutePath() + File.separator + rawFileName + extension;
+		ftpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
+		rawFtpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
 
-		destinationUrl = sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName + "/" + fileName + extension;
+		localPath = localFolder.getPath() + File.separator + fileName + extension;
+		rawLocalPath = localFolder.getPath() + File.separator + "raw_" + fileName + extension;
 
 	}
 
 	public void execute() throws IOException {
-		System.out.println("Extracting source id: " + SOURCE_ID + "\tat time: " + fileName);
-		int logId = IdCreater.createIdByCurrentTime();
-		String status = log.getFileStatus(SOURCE_ID);
-		switch (status) {
-		case "EO":
-			System.out.println("Result extract: This source has been extracted");
-			break;
-		case "ER", "EF":
-			try {
-				extract(logId);
-			} catch (SQLException e1) {
-				e1.printStackTrace();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-			break;
-		default:
-			try {
-				log.insertRecord(logId, SOURCE_ID, destinationUrl);
-				extract(logId);
-			} catch (SQLException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			break;
+		DateFormat dateFormate = new SimpleDateFormat("yy-MM-dd HH:MM-ss");
+		System.out.println(">> Start: extract source_id: " + SOURCE_ID + "\tat time: " + fileName);
+		String preStatus = null;
+		String timeLoad = null;
+		try {
+			preStatus = log.getOneRowInformation(SOURCE_ID).getString("status");
+			timeLoad = log.getOneRowInformation(SOURCE_ID).getString("timeLoad");
+		} catch (SQLException e1) {
+			preStatus = "";
+			timeLoad = "";
 		}
+		currentDate = new Date();
+		if (timeLoad.equals(dateFormate.format(currentDate)) && preStatus.equals("EO")) {
+			System.out.println("This source id:" + SOURCE_ID + " has been loaded!");
+			return;
+		}
+		int logId = IdCreater.createIdByCurrentTime();
+		log.insertRecord(logId, SOURCE_ID, localPath, ftpPath);
+		try {
+			extract(logId);
+			log.updateStatus(logId, "EO");
+		} catch (SQLException e) {
+			log.updateStatus(logId, "EF");
+			e.printStackTrace();
+		} catch (IOException e) {
+			log.updateStatus(logId, "EF");
+		}
+
 	}
 
 	private boolean extract(int logId) throws SQLException, IOException {
@@ -107,18 +107,14 @@ public class Process1_ThoiTietVN {
 		// 2.2 Tiến hành extract
 		try {
 			// Mở file
-			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(path))));
-			rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawPath))));
+			writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(localPath))));
+			rawWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(new File(rawLocalPath))));
 
 			SimpleDateFormat dt = new SimpleDateFormat("dd-MM-yy HH:mm");
 			String currentTimeStamp = dt.format(CurrentTimeStamp.timestamp);
 
-			writer.println(currentTimeStamp);
-			rawWriter.println(currentTimeStamp);
-
 			Document doc = Jsoup.connect(sourceUrl).get();
 			Elements provinces = doc.select(".megamenu a");
-
 			for (int i = 0; i < provinces.size(); i++) {
 				int id = IdCreater.generateUniqueId();
 				String dataURL = sourceUrl + provinces.get(i).attr("href");
@@ -177,16 +173,16 @@ public class Process1_ThoiTietVN {
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		if (ftpManager.pushFile(path, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + fileName, fileName + extension)
-				&& ftpManager.pushFile(rawPath, sourceConfigDao.getDistFolder(SOURCE_ID) + "/" + rawFileName,
-						rawFileName + extension)) {
+
+		if (ftpManager.pushFile(localPath, ftpPath, fileName + extension)
+				&& ftpManager.pushFile(rawLocalPath, rawFtpPath, rawFileName + extension)) {
 			log.updateStatus(logId, "EO");
 			result = true;
-			System.out.println("Extract result: EO");
+			System.out.println(">> End: extract result: EO");
 		} else {
 			log.updateStatus(logId, "EF");
 			result = false;
-			System.out.println("Extract result: EF");
+			System.out.println(">> End: extract result: EF");
 		}
 		return result;
 	}

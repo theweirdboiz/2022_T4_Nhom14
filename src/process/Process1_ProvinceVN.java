@@ -32,7 +32,6 @@ public class Process1_ProvinceVN {
 
 	private String sourceUrl, ftpPath, localPath, rawFtpPath, rawLocalPath;
 	private String fileName, rawFileName, extension, separator;
-	private String path, rawPath;
 
 	private PrintWriter writer, rawWriter;
 	private Date currentDate;
@@ -60,43 +59,39 @@ public class Process1_ProvinceVN {
 		}
 		ftpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
 		rawFtpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
-
 		localPath = localFolder.getPath() + File.separator + fileName + extension;
 		rawLocalPath = localFolder.getPath() + File.separator + "raw_" + fileName + extension;
 	}
 
 	public void execute() throws IOException {
+		DateFormat dateFormate = new SimpleDateFormat("yy-MM-dd HH:MM-ss");
 		System.out.println(">> Start: extract source_id: " + SOURCE_ID + "\tat time: " + fileName);
-		int logId = IdCreater.createIdByCurrentTime();
-		String status = log.getFileStatus(SOURCE_ID);
-		switch (status) {
-		case "EO":
-			System.out.println(">> End: this source_id has been extracted");
-			break;
-		case "ER", "EF":
-			try {
-				extract(logId);
-			} catch (SQLException e1) {
-				log.updateStatus(logId, "EF");
-				e1.printStackTrace();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-			break;
-		default:
-			try {
-				log.insertRecord(logId, SOURCE_ID, localPath, ftpPath);
-				extract(logId);
-			} catch (SQLException e) {
-				log.updateStatus(logId, "EF");
-				e.printStackTrace();
-			} catch (IOException e) {
-				log.updateStatus(logId, "EF");
-
-				e.printStackTrace();
-			}
-			break;
+		String preStatus = null;
+		String timeLoad = null;
+		try {
+			preStatus = log.getOneRowInformation(SOURCE_ID).getString("status");
+			timeLoad = log.getOneRowInformation(SOURCE_ID).getString("timeLoad");
+		} catch (SQLException e1) {
+			preStatus = "";
+			timeLoad = "";
 		}
+		currentDate = new Date();
+		if (timeLoad.equals(dateFormate.format(currentDate)) && preStatus.equals("EO")) {
+			System.out.println("This source id:" + SOURCE_ID + " has been loaded!");
+			return;
+		}
+		int logId = IdCreater.createIdByCurrentTime();
+		log.insertRecord(logId, SOURCE_ID, localPath, ftpPath);
+		try {
+			extract(logId);
+			log.updateStatus(logId, "EO");
+		} catch (SQLException e) {
+			log.updateStatus(logId, "EF");
+			e.printStackTrace();
+		} catch (IOException e) {
+			log.updateStatus(logId, "EF");
+		}
+
 	}
 
 	private boolean extract(int logId) throws SQLException, IOException {
