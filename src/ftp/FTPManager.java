@@ -39,10 +39,9 @@ public class FTPManager {
 	}
 
 	public boolean pushFile(String path, String distFolder, String fileName) throws IOException {
-		FileInputStream fis = new FileInputStream(new File(path));
+		BufferedInputStream bis = new BufferedInputStream(new FileInputStream(new File(path)));
 		ftpClient.makeDirectory(distFolder);
-		System.out.println("path: " + distFolder + "/" + fileName);
-		return ftpClient.storeFile(distFolder + "/" + fileName, fis);
+		return ftpClient.storeFile(distFolder + "/" + fileName, bis);
 	}
 
 	public BufferedReader getReaderFileInFTPServer(String path) throws IOException {
@@ -79,7 +78,7 @@ public class FTPManager {
 
 	public static void main(String[] args) throws IOException {
 		FTPManager ftpManager = new FTPManager(3);
-		ftpManager.listFolder(ftpClient, " province_extract/2022-11-26");
+		ftpManager.listFolder(ftpClient, " province_dim/2022-11-27");
 //		ft
 	}
 }

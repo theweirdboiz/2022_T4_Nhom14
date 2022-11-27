@@ -18,16 +18,25 @@ public class LogControllerDao {
 		connection = DbControlConnection.getIntance().getConnect();
 	}
 
+	public ResultSet getOneFact() {
+		procedure = Procedure.GET_ONE_FACT;
+		try {
+			callStmt = connection.prepareCall(procedure);
+			return callStmt.executeQuery();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	// 1. Lấy một dòng dữ liệu trong log, kiểm tra source này đã được ghi vào ngày
 	// hôm nay và giờ hiện tại hay chưa?
 
-	public ResultSet getOneRowInformation(int sourceId) {
+	public ResultSet getOneRowInformation() {
 		procedure = Procedure.GET_ONE_ROW_INFO;
 		try {
 			callStmt = connection.prepareCall(procedure);
-			callStmt.setInt(1, sourceId);
 			return callStmt.executeQuery();
-
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;

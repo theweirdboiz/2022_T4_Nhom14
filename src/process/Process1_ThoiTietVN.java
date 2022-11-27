@@ -40,7 +40,7 @@ public class Process1_ThoiTietVN {
 
 	private PrintWriter writer, rawWriter;
 	private Date currentDate;
-	private File localFolder;
+	private File localFolder, ftpFolder;
 
 	public Process1_ThoiTietVN() {
 		sourceConfigDao = new SourceConfigDao();
@@ -49,45 +49,28 @@ public class Process1_ThoiTietVN {
 		log = new LogControllerDao();
 		ftpManager = new FTPManager(SOURCE_ID);
 
-		DateFormat dateFormatForFileName = new SimpleDateFormat("dd-MM-yyyy_HH");
-		currentDate = new Date();
-		fileName = dateFormatForFileName.format(currentDate);
-		rawFileName = "raw_" + dateFormatForFileName.format(currentDate);
-
 		extension = ".csv";
 		separator = ", ";
 
-		localFolder = new File(sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName);
+		fileName = CurrentTimeStamp.getCurrentTimeStamp();
+		rawFileName = "raw_" + CurrentTimeStamp.getCurrentTimeStamp();
 
+		ftpFolder = new File(sourceConfigDao.getFtpFolder(SOURCE_ID));
+		localFolder = new File(sourceConfigDao.getLocalFolder(SOURCE_ID));
 		if (!localFolder.exists()) {
 			System.out.println("Create new folder: " + localFolder.getName());
 			localFolder.mkdirs();
 		}
-		ftpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
-		rawFtpPath = sourceConfigDao.getPathFolder(SOURCE_ID) + "/" + fileName;
 
-		localPath = localFolder.getPath() + File.separator + fileName + extension;
-		rawLocalPath = localFolder.getPath() + File.separator + "raw_" + fileName + extension;
+		ftpPath = ftpFolder.getPath() + "/" + fileName + extension;
+		localPath = localFolder.getAbsolutePath() + File.separator + fileName + extension;
 
+		rawFtpPath = ftpFolder.getPath() + "/" + fileName + extension;
+		rawLocalPath = localFolder.getAbsolutePath() + File.separator + "raw_" + fileName + extension;
 	}
 
 	public void execute() throws IOException {
-		DateFormat dateFormate = new SimpleDateFormat("yy-MM-dd HH:MM-ss");
 		System.out.println(">> Start: extract source_id: " + SOURCE_ID + "\tat time: " + fileName);
-		String preStatus = null;
-		String timeLoad = null;
-		try {
-			preStatus = log.getOneRowInformation(SOURCE_ID).getString("status");
-			timeLoad = log.getOneRowInformation(SOURCE_ID).getString("timeLoad");
-		} catch (SQLException e1) {
-			preStatus = "";
-			timeLoad = "";
-		}
-		currentDate = new Date();
-		if (timeLoad.equals(dateFormate.format(currentDate)) && preStatus.equals("EO")) {
-			System.out.println("This source id:" + SOURCE_ID + " has been loaded!");
-			return;
-		}
 		int logId = IdCreater.createIdByCurrentTime();
 		log.insertRecord(logId, SOURCE_ID, localPath, ftpPath);
 		try {
@@ -99,7 +82,6 @@ public class Process1_ThoiTietVN {
 		} catch (IOException e) {
 			log.updateStatus(logId, "EF");
 		}
-
 	}
 
 	private boolean extract(int logId) throws SQLException, IOException {
@@ -174,8 +156,8 @@ public class Process1_ThoiTietVN {
 			e.printStackTrace();
 		}
 
-		if (ftpManager.pushFile(localPath, ftpPath, fileName + extension)
-				&& ftpManager.pushFile(rawLocalPath, rawFtpPath, rawFileName + extension)) {
+		if (ftpManager.pushFile(localPath, ftpFolder.getPath().replace('\\', '/'), fileName + extension)
+				&& ftpManager.pushFile(rawLocalPath, ftpFolder.getPath().replace("\\", "/"), rawFileName + extension)) {
 			log.updateStatus(logId, "EO");
 			result = true;
 			System.out.println(">> End: extract result: EO");

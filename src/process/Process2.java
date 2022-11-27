@@ -18,9 +18,9 @@ import dao.control.LogControllerDao;
 import dao.control.SourceConfigDao;
 import dao.staging.DateDimDao;
 import dao.staging.ProvinceDimDao;
-import dao.staging.RawWeatherFactDao;
 import dao.staging.TimeDimdao;
 import dao.staging.WeatherFactDao;
+import db.DbControlConnection;
 import ftp.FTPManager;
 
 public class Process2 implements Procedure {
@@ -39,12 +39,12 @@ public class Process2 implements Procedure {
 	private ProvinceDimDao provinceDimDao;
 	private WeatherFactDao weatherFactDao;
 	private String procedure;
-	private int logId;
+//	private int logId;
 
 	public Process2() {
 		logDao = new LogControllerDao();
 		sourceConfigDao = new SourceConfigDao();
-		logId = logDao.getLogId();
+//		logId = logDao.getLogId();
 		dateDimDao = new DateDimDao();
 		timeDimdao = new TimeDimdao();
 		provinceDimDao = new ProvinceDimDao();
@@ -52,109 +52,66 @@ public class Process2 implements Procedure {
 		ftpManager = new FTPManager(SOURCE_PROVINCE_ID);
 	}
 
-	private boolean loadProvinceDimIntoStaging(int logId, String destination) {
+	private boolean loadProvinceDimIntoStaging() throws IOException, SQLException {
+		provinceDimDao.execute();
+		return provinceDimDao.load();
+	}
+
+	private boolean loadDateDimIntoStaging() throws SQLException, IOException {
+		dateDimDao.execute();
+		return dateDimDao.load();
+	}
+
+	private boolean loadTimeDimIntoStaging() throws IOException, SQLException {
+		timeDimdao.execute();
+		return timeDimdao.load();
+	}
+
+	private boolean loadWeatherFactIntoStaging(String ftpPath) throws IOException {
 		boolean result = false;
-		BufferedReader br;
 		try {
-			br = ftpManager.getReaderFileInFTPServer(destination);
+			BufferedReader br = new BufferedReader(new FileReader(new File(ftpPath)));
 			String line;
-			System.out.println(">> Start: load province dim into staging");
+			System.out.println(">> Start: loading raw fact");
 			while ((line = br.readLine()) != null) {
 				String[] elms = line.split(",");
-				int id = Integer.parseInt(elms[0].trim());
-				String name = elms[1].trim();
-				result = provinceDimDao.loadByLine(id, name);
+				weatherFactDao.loadRawFactByLine(Integer.parseInt(elms[0].trim()), elms[1].trim(), elms[2].trim(),
+						Integer.parseInt(elms[3].trim()), elms[4].trim(), Integer.parseInt(elms[5].trim()),
+						Integer.parseInt(elms[6].trim()), Float.parseFloat(elms[7].trim()),
+						Float.parseFloat(elms[8].trim()), Float.parseFloat(elms[9].trim()),
+						Integer.parseInt(elms[10].trim()), Float.parseFloat(elms[11].trim()), elms[12].trim());
 			}
-			logDao.updateStatus(logId, "EL");
-		} catch (IOException e) {
+			result = true;
+		} catch (FileNotFoundException e) {
 			e.printStackTrace();
+			return false;
 		}
 		System.out.println(">> End: " + result);
 		return result;
 	}
 
-	private boolean loadDateDimIntoStaging() {
-		boolean result = true;
-		File file = new File(sourceConfigDao.getURL(SOURCE_DATE_DIM_ID));
-		System.out.println(file.getAbsolutePath());
-		if (!file.exists()) {
-			System.out.println("Create date_dim.csv");
-			dateDimDao.createFile();
-			System.out.println("--------------------------");
-		}
-		if (!dateDimDao.isDateDimExisted()) {
-			BufferedReader br;
-			try {
-				br = new BufferedReader(new FileReader(file));
-				String line;
-				System.out.println(">> Start: load date dim into staging");
-				while ((line = br.readLine()) != null) {
-					String[] elms = line.split(",");
-					int id = Integer.parseInt(elms[0].trim());
-					String date = elms[1].trim();
-					int year = Integer.parseInt(elms[2].trim());
-					int month = Integer.parseInt(elms[3].trim());
-					int day = Integer.parseInt(elms[4].trim());
-					String dayOfWeek = elms[5].trim();
-					result = dateDimDao.loadByLine(id, date, year, month, day, dayOfWeek);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			System.out.println(">> End: " + result);
-		}
-		return result;
-	}
-
-	private boolean loadTimeDimIntoStaging() {
-		boolean result = true;
-		File file = new File(sourceConfigDao.getURL(SOURCE_TIME_DIM_ID));
-		System.out.println(file.getAbsolutePath());
-		if (!file.exists()) {
-			System.out.println("Create time_dim.csv");
-			timeDimdao.createFile();
-			System.out.println("--------------------------");
-		}
-		if (!timeDimdao.isTimeDimExisted()) {
-			BufferedReader br;
-			try {
-				br = new BufferedReader(new FileReader(file));
-				String line;
-				System.out.println(">> Start: load time dim into staging");
-				while ((line = br.readLine()) != null) {
-					String[] elms = line.split(",");
-					int id = Integer.parseInt(elms[0].trim());
-					String time = elms[1].trim();
-					result = timeDimdao.loadByLine(id, time);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			System.out.println(">> End: " + result);
-		}
-		return result;
-	}
-
-	private boolean loadWeatherFactIntoStaging() {
+	private boolean transFormWeatherFactIntoStaging() {
 		return weatherFactDao.transformFact();
 	}
 
-	public boolean excute() {
-		boolean result = false;
-		int logId = logDao.getLogId();
-		int sourceId = logDao.getSourceIdByLogId(logId);
-		String destination = logDao.getDestinationByLogId(logId);
-		String status = logDao.getStatusByLogId(logId);
-		if (!status.equals("EO")) {
-			System.out.println("No any new file in FTP server");
-			return false;
-		}
-		System.out.println(destination + " ready to loading");
-		loadProvinceDimIntoStaging(logId, destination);
+	public void excute() throws SQLException, IOException {
 		loadDateDimIntoStaging();
 		loadTimeDimIntoStaging();
-		loadWeatherFactIntoStaging();
-		return result;
+		loadProvinceDimIntoStaging();
+		rs = logDao.getOneFact();
+		if (rs.next()) {
+			int logId = rs.getInt("id");
+			String status = rs.getString("status");
+			String ftpPath = rs.getString("ftpPath");
+			if (status.equals("EO")) {
+				loadWeatherFactIntoStaging(ftpPath);
+				logDao.updateStatus(logId, "EL");
+				transFormWeatherFactIntoStaging();
+			}
+			return;
+		}
+		System.out.println("Not any new file!");
+
 	}
 
 	public static void main(String[] args) throws SQLException, IOException {

@@ -40,7 +40,7 @@ public class SourceConfigDao {
 		}
 	}
 
-	public String getPathFolder(int id) {
+	public String getLocalFolder(int id) {
 		try {
 			query = Procedure.GET_PATH_FOLDER;
 			ps = connection.prepareCall(query);
@@ -52,7 +52,7 @@ public class SourceConfigDao {
 		}
 	}
 
-	public String getDistFolder(int id) {
+	public String getFtpFolder(int id) {
 		try {
 			query = Procedure.GET_DIST_FOLDER;
 			ps = connection.prepareCall(query);
@@ -66,7 +66,6 @@ public class SourceConfigDao {
 
 	public static void main(String[] args) throws SQLException {
 		SourceConfigDao sourceConfigDao = new SourceConfigDao();
-		System.out.println(sourceConfigDao.getPathFolder(3));
 //		System.out.println(sourceConfigDao.getFileName());
 	}
 }

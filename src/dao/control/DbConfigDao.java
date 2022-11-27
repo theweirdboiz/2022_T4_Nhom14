@@ -29,7 +29,7 @@ public class DbConfigDao {
 			if (result.next()) {
 				dbHosting = new DbHosting(
 						result.getString("driver") + "://" + result.getString("location") + "/"
-								+ result.getString("dbName"),
+								+ result.getString("dbName") + "?allowLoadLocalInfile=true",
 						result.getString("username"), result.getString("password"), result.getString("dbName"));
 			}
 		} catch (SQLException e) {
@@ -48,7 +48,7 @@ public class DbConfigDao {
 			if (result.next()) {
 				dbHosting = new DbHosting(
 						result.getString("driver") + "://" + result.getString("location") + "/"
-								+ result.getString("dbName"),
+								+ result.getString("dbName") + "?allowLoadLocalInfile=true",
 						result.getString("username"), result.getString("password"), result.getString("dbName"));
 			}
 		} catch (SQLException e) {
